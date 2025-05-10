@@ -24,6 +24,18 @@ setInterval(cleanupCache, 60 * 60 * 1000);
 
 // Serve the index.html file for the root route
 router.get('/', (req, res) => {
+  // Calculate expiration one year from now
+  const oneYearFromNow = new Date();
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  
+  // Set aggressive caching headers
+  res.set({
+    'Cache-Control': 'public, max-age=31536000', // Cache for 1 year (in seconds)
+    'Expires': oneYearFromNow.toUTCString(),
+    'ETag': '"homepage-v1"', // Simple version-based ETag
+    'X-Content-Type-Options': 'nosniff'
+  });
+  
   res.sendFile(path.join(__dirname, '../views/index.html'));
 });
 
