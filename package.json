@@ -1,9 +1,9 @@
 {
   "name": "nodejs-app",
   "version": "1.0.0",
-  "description": "A minimal Node.js web application.",
+  "description": "App to deploy to Railway",
   "main": "app.js",
-  "author": "alphasec",
+  "author": "Siddharth Kulkarni",
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2"

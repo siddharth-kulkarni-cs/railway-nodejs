@@ -13,7 +13,7 @@ function cleanupCache() {
     const keysToDelete = [...wordCache.keys()]
       .sort((a, b) => wordCache.get(a).timestamp - wordCache.get(b).timestamp)
       .slice(0, Math.floor(CACHE_MAX_SIZE * 0.2));
-    
+
     keysToDelete.forEach(key => wordCache.delete(key));
     console.log(`Cache cleanup: removed ${keysToDelete.length} oldest entries`);
   }
@@ -28,50 +28,50 @@ router.get('/', (req, res) => {
 });
 
 router.get('/word-usage', async (req, res) => {
-    const word = req.query.word;
-    console.log('Word:', word);
-    if(!word || word.length === 0){
-      console.log('No word provided');
-      res.sendFile(path.join(__dirname, '../views/404.html'));
-      return; // Add return to prevent further execution
+  const word = req.query.word;
+  console.log('Word:', word);
+  if (!word || word.length === 0) {
+    console.log('No word provided');
+    res.sendFile(path.join(__dirname, '../views/404.html'));
+    return; // Add return to prevent further execution
+  }
+
+  try {
+    let data;
+    // Check if word is in cache
+    if (wordCache.has(word)) {
+      console.log(`Cache hit for word: ${word}`);
+      const cacheEntry = wordCache.get(word);
+      // Update timestamp to mark as recently used
+      cacheEntry.timestamp = Date.now();
+      data = cacheEntry.data;
+    } else {
+      console.log(`Cache miss for word: ${word}, fetching from API`);
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+      data = await response.json();
+
+      // Store in cache with timestamp
+      wordCache.set(word, {
+        data: data,
+        timestamp: Date.now()
+      });
+
+      // Cleanup cache if needed
+      if (wordCache.size > CACHE_MAX_SIZE) {
+        cleanupCache();
+      }
     }
 
-    try {
-      let data;
-      // Check if word is in cache
-      if (wordCache.has(word)) {
-        console.log(`Cache hit for word: ${word}`);
-        const cacheEntry = wordCache.get(word);
-        // Update timestamp to mark as recently used
-        cacheEntry.timestamp = Date.now();
-        data = cacheEntry.data;
-      } else {
-        console.log(`Cache miss for word: ${word}, fetching from API`);
-        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-        data = await response.json();
-        
-        // Store in cache with timestamp
-        wordCache.set(word, {
-          data: data,
-          timestamp: Date.now()
-        });
-        
-        // Cleanup cache if needed
-        if (wordCache.size > CACHE_MAX_SIZE) {
-          cleanupCache();
-        }
-      }
-      
-      if(!data || data.length === 0 || !data[0] || !data[0].meanings || !data[0].meanings[0] || !data[0].meanings[0].definitions || !data[0].meanings[0].definitions[0]){
-        console.log('No data found');
-        res.sendFile(path.join(__dirname, '../views/404.html'));
-        return;
-      }
-      
-      console.log('Data:', data[0].meanings[0].definitions[0].definition);
-      
-      // Create HTML response
-      let html = `
+    if (!data || data.length === 0 || !data[0] || !data[0].meanings || !data[0].meanings[0] || !data[0].meanings[0].definitions || !data[0].meanings[0].definitions[0]) {
+      console.log('No data found');
+      res.sendFile(path.join(__dirname, '../views/404.html'));
+      return;
+    }
+
+    console.log('Data:', data[0].meanings[0].definitions[0].definition);
+
+    // Create HTML response
+    let html = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -190,50 +190,80 @@ router.get('/word-usage', async (req, res) => {
         <div class="definitions-container">
           <h2>Definitions:</h2>
       `;
-      
-      // Add all meanings and definitions
-      data[0].meanings.forEach(meaning => {
-        html += `<h3 class="part-of-speech">${meaning.partOfSpeech}</h3>`;
-        
-        meaning.definitions.forEach((def, index) => {
-          html += `
+
+    // Add this before the closing </div> tag and the back link
+    html += `
+  </div>
+  
+  <div class="search-container" style="margin-top: 3rem; padding: 1.5rem; background-color: var(--light-bg); border-radius: 8px; box-shadow: var(--shadow);">
+    <h3 style="color: var(--secondary-color); margin-bottom: 1rem;">Look up another word</h3>
+    <form action="/word-usage" method="get" style="display: flex; gap: 0.5rem;">
+      <input 
+        type="text" 
+        name="word" 
+        placeholder="Enter a word..." 
+        style="flex: 1; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem;"
+        required
+      >
+      <button 
+        type="submit" 
+        style="background-color: var(--primary-color); color: white; border: none; border-radius: 4px; padding: 0.6rem 1.2rem; cursor: pointer; transition: background-color 0.3s ease;"
+        onmouseover="this.style.backgroundColor='#3a5a80'" 
+        onmouseout="this.style.backgroundColor='var(--primary-color)'"
+      >
+        Search
+      </button>
+    </form>
+  </div>
+  
+  <a href="/" class="back-link">Back to Home</a>
+</body>
+</html>
+`;
+
+    // Add all meanings and definitions
+    data[0].meanings.forEach(meaning => {
+      html += `<h3 class="part-of-speech">${meaning.partOfSpeech}</h3>`;
+
+      meaning.definitions.forEach((def, index) => {
+        html += `
           <div class="definition">
             <strong>${index + 1}.</strong> ${def.definition}
             ${def.example ? `<div class="example"><strong>Example:</strong> "${def.example}"</div>` : ''}
           </div>`;
-        });
       });
-      
-      html += `
+    });
+
+    html += `
         </div>
         <a href="/" class="back-link">Back to Home</a>
       </body>
       </html>
       `;
-      
-      // Set aggressive caching headers
-      // Calculate expiration one year from now
-      const oneYearFromNow = new Date();
-      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-      
-      res.set({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=31536000', // Cache for 1 year (in seconds)
-        'Expires': oneYearFromNow.toUTCString(),
-        'ETag': `"${Buffer.from(word).toString('base64')}"`, // Simple ETag based on the word
-      });
-      
-      // Send HTML response
-      res.send(html);
-      
-    } catch (error) {
-      console.error('Error fetching word data:', error);
-      // Don't cache error responses
-      res.set({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-store, must-revalidate'
-      });
-      res.status(500).send(`
+
+    // Set aggressive caching headers
+    // Calculate expiration one year from now
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+    res.set({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=31536000', // Cache for 1 year (in seconds)
+      'Expires': oneYearFromNow.toUTCString(),
+      'ETag': `"${Buffer.from(word).toString('base64')}"`, // Simple ETag based on the word
+    });
+
+    // Send HTML response
+    res.send(html);
+
+  } catch (error) {
+    console.error('Error fetching word data:', error);
+    // Don't cache error responses
+    res.set({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, must-revalidate'
+    });
+    res.status(500).send(`
         <html>
           <head><title>Error</title></head>
           <body>
@@ -243,7 +273,7 @@ router.get('/word-usage', async (req, res) => {
           </body>
         </html>
       `);
-    }
+  }
 });
 
 module.exports = router;
