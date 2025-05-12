@@ -72,17 +72,21 @@ if(word.toLowerCase() === 'contentstack') {
       data = cacheEntry.data;
     } else {
       console.log(`Cache miss for word: ${word}, fetching from API`);
-      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-
-      let genAIResponse = null;
-      if(api_key){
-        genAIResponse = await generateContent(api_key, word);
-      }
-
-      console.log('genAIResponse', genAIResponse);
+      
+      // Run API calls in parallel
+      const dictionaryPromise = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+      const genAIPromise = api_key ? generateContent(api_key, word) : Promise.resolve(null);
+      
+      const [response, genAIResponse] = await Promise.all([
+        dictionaryPromise,
+        genAIPromise
+      ]);
+      
       data = await response.json();
-      data.genAIResponse = genAIResponse
-
+      data.genAIResponse = genAIResponse;
+      
+      console.log('genAIResponse', genAIResponse);
+      
       // Store in cache with timestamp
       wordCache.set(word, {
         data: data,
