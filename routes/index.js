@@ -2,7 +2,8 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 const { contentstackRedirectFragment, dynamicWordFragement, inputTextFragment } = require('../services/html-fragments');
-
+const { generateContent } = require('../services/gen-ai');
+const api_key = process.env.GEMINI_API_KEY;
 // Add a simple in-memory cache
 const wordCache = new Map();
 const CACHE_MAX_SIZE = 1000; // Maximum number of entries to prevent memory issues
@@ -72,7 +73,15 @@ if(word.toLowerCase() === 'contentstack') {
     } else {
       console.log(`Cache miss for word: ${word}, fetching from API`);
       const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+
+      let genAIResponse = null;
+      if(api_key){
+        genAIResponse = await generateContent(api_key, word);
+      }
+
+      console.log('genAIResponse', genAIResponse);
       data = await response.json();
+      data.genAIResponse = genAIResponse
 
       // Store in cache with timestamp
       wordCache.set(word, {
@@ -99,6 +108,16 @@ if(word.toLowerCase() === 'contentstack') {
 
     // Add this before the closing </div> tag and the back link
     html += inputTextFragment();
+
+    if (data.genAIResponse?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      const aiText = data.genAIResponse.candidates[0].content.parts[0].text;
+      html += `
+        <div class="gen-ai-section" style="margin-top: 2rem; background-color: var(--light-bg); border-radius: 8px; box-shadow: var(--shadow); padding: 1.5rem; border-left: 4px solid var(--accent-color);">
+          <h3 class="gen-ai-response-title" style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.4rem;">${word} etymology and historical fact</h3>
+          <div class="gen-ai-response-content" style="line-height: 1.7; color: var(--text-color);">${aiText}</div>
+        </div>
+      `;
+    }
 
     // Add all meanings and definitions
     data[0].meanings.forEach(meaning => {
