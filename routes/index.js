@@ -46,7 +46,8 @@ router.get('/word-usage', async (req, res) => {
   console.log('Word:', word);
   if (!word || word.trim().length === 0) {
     console.log('No word provided');
-    res.sendFile(path.join(__dirname, '../views/index.html'));
+    // res.sendFile(path.join(__dirname, '../views/index.html'));
+    res.redirect("/")
     return; // Add return to prevent further execution
   }
 
