@@ -43,7 +43,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/word-usage', async (req, res) => {
-  const word = req.query.word;
+  let word = req.query.word;
   console.log('Word:', word);
   if (!word || word.trim().length === 0) {
     console.log('No word provided');
