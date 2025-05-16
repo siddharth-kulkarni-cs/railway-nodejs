@@ -54,6 +54,8 @@ router.get('/word-usage', async (req, res) => {
 
    // Fix the contentstack check and add redirection
   // In your word-usage route handler
+  word = word.trim();
+ console.log(`word == ${word}`)
 if(word.toLowerCase() === 'contentstack') {
   console.log('Showing loader before redirecting to Contentstack website');
   
