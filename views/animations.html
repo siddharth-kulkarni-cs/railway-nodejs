@@ -157,6 +157,10 @@
         <button class="btn btn-animation" onclick="switchAnimation('waves')">Waves</button>
         <button class="btn btn-animation" onclick="switchAnimation('flocking')">Flocking</button>
         <button class="btn btn-animation" onclick="switchAnimation('fireworks')">Fireworks</button>
+        <button class="btn btn-animation" onclick="switchAnimation('bubbles')">Bubbles</button>
+        <button class="btn btn-animation" onclick="switchAnimation('matrix')">Matrix</button>
+        <button class="btn btn-animation" onclick="switchAnimation('starfield')">Starfield</button>
+        <button class="btn btn-animation" onclick="switchAnimation('geometric')">Geometric</button>
       </div>
     </div>
     
@@ -198,7 +202,11 @@
         particles: "Interactive particle system that responds to your mouse movements. Move your cursor across the canvas to interact with the particles.",
         waves: "Mesmerizing wave animation using sine waves with randomized colors. The waves flow across the screen creating beautiful patterns.",
         flocking: "Simulation of flocking behavior (boids algorithm) where entities follow simple rules to create complex behaviors.",
-        fireworks: "Celebratory fireworks that burst into colorful particles. Click anywhere on the canvas to launch fireworks."
+        fireworks: "Celebratory fireworks that burst into colorful particles. Click anywhere on the canvas to launch fireworks.",
+        bubbles: "Colorful bubbles that float gently upward with a dreamy, underwater effect. Hover over bubbles to interact with them.",
+        matrix: "Digital rain inspired by The Matrix movie. Characters stream down in a cyberpunk visual aesthetic.",
+        starfield: "A mesmerizing journey through a 3D star field, creating the illusion of moving through space.",
+        geometric: "Abstract geometric patterns that transform and evolve, creating a hypnotic visual experience."
       };
       
       document.getElementById('animationDescription').textContent = descriptions[type];
@@ -218,7 +226,13 @@
       let particles = [];
       let boids = [];
       let fireworks = [];
+      let bubbles = [];
+      let symbols = [];
+      let streams = [];
+      let stars = [];
+      let shapes = [];
       let gravity;
+      let time = 0;
       
       p.setup = function() {
         const container = document.getElementById('canvasContainer');
@@ -239,6 +253,22 @@
         } else if (currentAnimationType === 'fireworks') {
           // Initialize gravity for fireworks
           gravity = p.createVector(0, 0.2);
+        } else if (currentAnimationType === 'bubbles') {
+          // Initialize bubbles
+          for (let i = 0; i < 40; i++) {
+            bubbles.push(new Bubble());
+          }
+        } else if (currentAnimationType === 'matrix') {
+          // Initialize matrix columns
+          initMatrix();
+        } else if (currentAnimationType === 'starfield') {
+          // Initialize stars
+          for (let i = 0; i < 800; i++) {
+            stars.push(new Star());
+          }
+        } else if (currentAnimationType === 'geometric') {
+          // Initialize geometric shapes
+          initGeometric();
         }
       };
       
@@ -251,6 +281,14 @@
           drawFlocking();
         } else if (currentAnimationType === 'fireworks') {
           drawFireworks();
+        } else if (currentAnimationType === 'bubbles') {
+          drawBubbles();
+        } else if (currentAnimationType === 'matrix') {
+          drawMatrix();
+        } else if (currentAnimationType === 'starfield') {
+          drawStarfield();
+        } else if (currentAnimationType === 'geometric') {
+          drawGeometric();
         }
       };
       
@@ -605,11 +643,345 @@
           return this.lifespan < 0;
         }
       }
+      
+      // Bubbles animation
+      function drawBubbles() {
+        p.background(200, 50, 40, 25);
+        
+        // Handle existing bubbles
+        for (let i = bubbles.length - 1; i >= 0; i--) {
+          bubbles[i].update();
+          bubbles[i].display();
+          
+          // Remove bubbles that have moved off screen
+          if (bubbles[i].isOffScreen()) {
+            bubbles.splice(i, 1);
+          }
+        }
+        
+        // Add new bubbles occasionally
+        if (p.frameCount % 5 === 0 && bubbles.length < 100) {
+          bubbles.push(new Bubble());
+        }
+      }
+      
+      class Bubble {
+        constructor() {
+          this.x = p.random(p.width);
+          this.y = p.height + p.random(20, 50);
+          this.size = p.random(10, 60);
+          this.speed = p.map(this.size, 10, 60, 2.5, 0.8);
+          this.hue = p.random(255);
+          this.alpha = p.random(100, 200);
+          this.wobble = p.random(0.1, 0.3);
+          this.wobbleSpeed = p.random(0.01, 0.05);
+          this.wobbleOffset = p.random(p.TWO_PI);
+          this.highlighted = false;
+        }
+        
+        update() {
+          this.y -= this.speed;
+          this.x += p.sin((p.frameCount * this.wobbleSpeed) + this.wobbleOffset) * this.wobble;
+          
+          // Check if mouse is close
+          let d = p.dist(p.mouseX, p.mouseY, this.x, this.y);
+          if (d < this.size/1.5) {
+            this.highlighted = true;
+            // Add slight repulsion from mouse
+            let angle = p.atan2(this.y - p.mouseY, this.x - p.mouseX);
+            this.x += p.cos(angle) * 1;
+            this.y += p.sin(angle) * 1;
+          } else {
+            this.highlighted = false;
+          }
+        }
+        
+        display() {
+          p.noFill();
+          let strokeAlpha = this.highlighted ? 255 : this.alpha;
+          let strokeWeight = this.highlighted ? 3 : 2;
+          
+          // Main bubble
+          p.strokeWeight(strokeWeight);
+          p.stroke(this.hue, 200, 255, strokeAlpha);
+          p.ellipse(this.x, this.y, this.size);
+          
+          // Highlight
+          p.strokeWeight(1);
+          p.stroke(this.hue, 100, 255, strokeAlpha * 0.7);
+          let highlightSize = this.size * 0.3;
+          let highlightX = this.x - this.size * 0.2;
+          let highlightY = this.y - this.size * 0.2;
+          p.ellipse(highlightX, highlightY, highlightSize);
+        }
+        
+        isOffScreen() {
+          return this.y < -this.size;
+        }
+      }
+      
+      // Matrix Digital Rain animation
+      function initMatrix() {
+        symbols = [];
+        streams = [];
+        
+        const symbolSize = 14;
+        const columnsCount = p.floor(p.width / symbolSize);
+        
+        for (let i = 0; i < columnsCount; i++) {
+          const stream = new Stream();
+          stream.generateSymbols(i * symbolSize, p.random(-1000, 0));
+          streams.push(stream);
+        }
+      }
+      
+      function drawMatrix() {
+        p.background(0, 0, 0, 20);
+        
+        streams.forEach(stream => {
+          stream.render();
+        });
+      }
+      
+      class Symbol {
+        constructor(x, y, speed, first, opacity) {
+          this.x = x;
+          this.y = y;
+          this.value = "";
+          this.speed = speed;
+          this.switchInterval = p.round(p.random(5, 20));
+          this.first = first;
+          this.opacity = opacity;
+          this.setToRandomSymbol();
+        }
+        
+        setToRandomSymbol() {
+          if (p.frameCount % this.switchInterval === 0) {
+            // Use a mix of katakana characters and latin alphanumerics
+            if (p.random(1) > 0.5) {
+              // Katakana Unicode range
+              this.value = String.fromCharCode(0x30A0 + p.round(p.random(0, 96)));
+            } else {
+              // Latin alphanumeric and some symbols
+              const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$+-*/=%\"'#&_(),.;:?!|{}[]<>~^";
+              this.value = chars.charAt(p.floor(p.random(chars.length)));
+            }
+          }
+        }
+        
+        update() {
+          this.y = (this.y >= p.height) ? 0 : this.y + this.speed;
+          this.setToRandomSymbol();
+        }
+        
+        render() {
+          // First character in the stream is white and brighter
+          if (this.first) {
+            p.fill(180, 50, 255, this.opacity);
+            p.textStyle(p.BOLD);
+          } else {
+            p.fill(120, 255, 200, this.opacity);
+            p.textStyle(p.NORMAL);
+          }
+          
+          p.textSize(14);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.text(this.value, this.x, this.y);
+        }
+      }
+      
+      class Stream {
+        constructor() {
+          this.symbols = [];
+          this.totalSymbols = p.round(p.random(5, 30));
+          this.speed = p.random(4, 10);
+        }
+        
+        generateSymbols(x, y) {
+          // First symbol is white and brighter
+          let opacity = p.random(150, 255);
+          let first = true;
+          
+          for (let i = 0; i < this.totalSymbols; i++) {
+            const symbol = new Symbol(
+              x,
+              y,
+              this.speed,
+              first,
+              opacity
+            );
+            
+            symbol.setToRandomSymbol();
+            this.symbols.push(symbol);
+            opacity -= p.random(5, 15);
+            opacity = p.max(opacity, 0);
+            y -= p.random(14, 20);
+            first = false;
+          }
+        }
+        
+        render() {
+          this.symbols.forEach(symbol => {
+            symbol.render();
+            symbol.update();
+          });
+        }
+      }
+      
+      // Starfield animation
+      function drawStarfield() {
+        p.background(0, 0, 5);
+        // Translate to center of screen
+        p.translate(p.width / 2, p.height / 2);
+        
+        for (let i = 0; i < stars.length; i++) {
+          stars[i].update();
+          stars[i].show();
+        }
+      }
+      
+      class Star {
+        constructor() {
+          this.reset();
+          // Start stars at random distances
+          this.z = p.random(0, p.width * 2);
+        }
+        
+        reset() {
+          this.x = p.random(-p.width, p.width);
+          this.y = p.random(-p.height, p.height);
+          this.z = p.width * 2;
+          this.pz = this.z;
+          this.size = p.random(0.5, 2);
+          this.color = p.color(p.random(150, 255), p.random(0, 50), 255);
+        }
+        
+        update() {
+          this.pz = this.z;
+          this.z -= 5; // Speed of moving through space
+          
+          if (this.z < 1) {
+            this.reset();
+          }
+        }
+        
+        show() {
+          let sx = p.map(this.x / this.z, 0, 1, 0, p.width);
+          let sy = p.map(this.y / this.z, 0, 1, 0, p.height);
+          
+          let px = p.map(this.x / this.pz, 0, 1, 0, p.width);
+          let py = p.map(this.y / this.pz, 0, 1, 0, p.height);
+          
+          let r = p.map(this.z, 0, p.width * 2, this.size * 3, 0);
+          
+          p.fill(this.color);
+          p.noStroke();
+          p.ellipse(sx, sy, r, r);
+          
+          // Draw "motion streak"
+          p.stroke(this.color);
+          p.strokeWeight(r * 0.5);
+          p.line(sx, sy, px, py);
+        }
+      }
+      
+      // Geometric animation
+      function initGeometric() {
+        shapes = [];
+        
+        // Create random geometric shapes
+        for (let i = 0; i < 15; i++) {
+          shapes.push({
+            type: p.floor(p.random(3)), // 0: circle, 1: rectangle, 2: triangle
+            x: p.random(p.width),
+            y: p.random(p.height),
+            size: p.random(20, 80),
+            rotation: p.random(p.TWO_PI),
+            rotationSpeed: p.random(-0.02, 0.02),
+            xSpeed: p.random(-1, 1),
+            ySpeed: p.random(-1, 1),
+            hue: p.random(255),
+            saturation: p.random(150, 255),
+            brightness: p.random(200, 255),
+            alpha: p.random(150, 200)
+          });
+        }
+      }
+      
+      function drawGeometric() {
+        p.background(0, 0, 20, 10);
+        
+        // Update time variable for sine/cosine calculations
+        time += 0.01;
+        
+        for (let shape of shapes) {
+          // Update position
+          shape.x += shape.xSpeed;
+          shape.y += shape.ySpeed;
+          
+          // Bounce off edges
+          if (shape.x < 0 || shape.x > p.width) shape.xSpeed *= -1;
+          if (shape.y < 0 || shape.y > p.height) shape.ySpeed *= -1;
+          
+          // Update rotation
+          shape.rotation += shape.rotationSpeed;
+          
+          // Pulse size with sine wave
+          const pulseSize = shape.size + p.sin(time + shape.x * 0.01) * 10;
+          
+          // Shift hue slowly
+          shape.hue = (shape.hue + 0.2) % 255;
+          
+          p.push();
+          p.translate(shape.x, shape.y);
+          p.rotate(shape.rotation);
+          
+          // Set fill and stroke
+          p.noStroke();
+          p.fill(shape.hue, shape.saturation, shape.brightness, shape.alpha);
+          
+          // Draw shape based on type
+          if (shape.type === 0) {
+            // Circle
+            p.ellipse(0, 0, pulseSize, pulseSize);
+          } else if (shape.type === 1) {
+            // Rectangle
+            p.rectMode(p.CENTER);
+            p.rect(0, 0, pulseSize, pulseSize * 0.7);
+          } else if (shape.type === 2) {
+            // Triangle
+            const halfSize = pulseSize / 2;
+            p.triangle(0, -halfSize, halfSize, halfSize, -halfSize, halfSize);
+          }
+          
+          p.pop();
+        }
+        
+        // Occasionally add a new shape
+        if (p.frameCount % 100 === 0 && shapes.length < 25) {
+          shapes.push({
+            type: p.floor(p.random(3)),
+            x: p.random(p.width),
+            y: p.random(p.height),
+            size: p.random(20, 80),
+            rotation: p.random(p.TWO_PI),
+            rotationSpeed: p.random(-0.02, 0.02),
+            xSpeed: p.random(-1, 1),
+            ySpeed: p.random(-1, 1),
+            hue: p.random(255),
+            saturation: p.random(150, 255),
+            brightness: p.random(200, 255),
+            alpha: p.random(150, 200)
+          });
+        }
+      }
     };
     
-    // Initialize the first animation on page load
+    // Randomly select an animation on page load
     document.addEventListener('DOMContentLoaded', function() {
-      switchAnimation('particles');
+      const animations = ['particles', 'waves', 'flocking', 'fireworks', 'bubbles', 'matrix', 'starfield', 'geometric'];
+      const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
+      switchAnimation(randomAnimation);
     });
   </script>
 </body>
