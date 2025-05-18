@@ -161,6 +161,10 @@
         <button class="btn btn-animation" onclick="switchAnimation('matrix')">Matrix</button>
         <button class="btn btn-animation" onclick="switchAnimation('starfield')">Starfield</button>
         <button class="btn btn-animation" onclick="switchAnimation('geometric')">Geometric</button>
+        <button class="btn btn-animation" onclick="switchAnimation('flow')">Flow Field</button>
+        <button class="btn btn-animation" onclick="switchAnimation('physics')">Physics</button>
+        <button class="btn btn-animation" onclick="switchAnimation('audio')">Audio Viz</button>
+        <button class="btn btn-animation" onclick="switchAnimation('neural')">Neural Net</button>
       </div>
     </div>
     
@@ -206,7 +210,11 @@
         bubbles: "Colorful bubbles that float gently upward with a dreamy, underwater effect. Hover over bubbles to interact with them.",
         matrix: "Digital rain inspired by The Matrix movie. Characters stream down in a cyberpunk visual aesthetic.",
         starfield: "A mesmerizing journey through a 3D star field, creating the illusion of moving through space.",
-        geometric: "Abstract geometric patterns that transform and evolve, creating a hypnotic visual experience."
+        geometric: "Abstract geometric patterns that transform and evolve, creating a hypnotic visual experience.",
+        flow: "Dynamic flow field where particles follow naturally curved paths. Move your mouse to create swirling vortexes and patterns.",
+        physics: "Interactive physics playground with realistic gravity and collisions. Click to create objects and watch them interact.",
+        audio: "Audio visualization that pulses with beat detection. Click anywhere to generate sound waves and see them visualized.",
+        neural: "Artificial neural network simulation that learns to follow your movements. Train it by drawing patterns with your mouse."
       };
       
       document.getElementById('animationDescription').textContent = descriptions[type];
@@ -231,6 +239,14 @@
       let streams = [];
       let stars = [];
       let shapes = [];
+      let flowField = [];
+      let flowParticles = [];
+      let physicsBodies = [];
+      let audioWaves = [];
+      let audioLevel = 0;
+      let neurons = [];
+      let connections = [];
+      let trainingData = [];
       let gravity;
       let time = 0;
       
@@ -269,6 +285,18 @@
         } else if (currentAnimationType === 'geometric') {
           // Initialize geometric shapes
           initGeometric();
+        } else if (currentAnimationType === 'flow') {
+          // Initialize flow field
+          initFlowField();
+        } else if (currentAnimationType === 'physics') {
+          // Initialize physics playground
+          initPhysics();
+        } else if (currentAnimationType === 'audio') {
+          // Initialize audio visualization
+          initAudio();
+        } else if (currentAnimationType === 'neural') {
+          // Initialize neural network
+          initNeuralNetwork();
         }
       };
       
@@ -289,6 +317,14 @@
           drawStarfield();
         } else if (currentAnimationType === 'geometric') {
           drawGeometric();
+        } else if (currentAnimationType === 'flow') {
+          drawFlowField();
+        } else if (currentAnimationType === 'physics') {
+          drawPhysics();
+        } else if (currentAnimationType === 'audio') {
+          drawAudio();
+        } else if (currentAnimationType === 'neural') {
+          drawNeuralNetwork();
         }
       };
       
@@ -297,6 +333,41 @@
             p.mouseX > 0 && p.mouseX < p.width && 
             p.mouseY > 0 && p.mouseY < p.height) {
           fireworks.push(new Firework(p.mouseX, p.height, p.mouseX, p.mouseY));
+        } else if (currentAnimationType === 'physics' && 
+            p.mouseX > 0 && p.mouseX < p.width && 
+            p.mouseY > 0 && p.mouseY < p.height) {
+          createPhysicsBody(p.mouseX, p.mouseY);
+        } else if (currentAnimationType === 'audio' && 
+            p.mouseX > 0 && p.mouseX < p.width && 
+            p.mouseY > 0 && p.mouseY < p.height) {
+          createAudioPulse(p.mouseX, p.mouseY);
+        }
+        
+        // For neural network, start recording mouse trail when pressed
+        if (currentAnimationType === 'neural' && 
+            p.mouseX > 0 && p.mouseX < p.width && 
+            p.mouseY > 0 && p.mouseY < p.height) {
+          trainingData = [];
+          trainingData.push({x: p.mouseX, y: p.mouseY});
+        }
+      };
+      
+      p.mouseDragged = function() {
+        if (currentAnimationType === 'neural' && 
+            p.mouseX > 0 && p.mouseX < p.width && 
+            p.mouseY > 0 && p.mouseY < p.height) {
+          trainingData.push({x: p.mouseX, y: p.mouseY});
+        } else if (currentAnimationType === 'flow' && 
+            p.mouseX > 0 && p.mouseX < p.width && 
+            p.mouseY > 0 && p.mouseY < p.height) {
+          // Create a vortex at the mouse position
+          createVortex(p.mouseX, p.mouseY);
+        }
+      };
+      
+      p.mouseReleased = function() {
+        if (currentAnimationType === 'neural' && trainingData.length > 5) {
+          trainNeuralNetwork(trainingData);
         }
       };
       
@@ -975,11 +1046,579 @@
           });
         }
       }
+      
+      // Flow Field animation
+      function initFlowField() {
+        // Create a flow field grid
+        const resolution = 20;
+        const cols = Math.ceil(p.width / resolution);
+        const rows = Math.ceil(p.height / resolution);
+        
+        flowField = new Array(cols * rows);
+        
+        // Initialize with Perlin noise
+        let yoff = 0;
+        for (let y = 0; y < rows; y++) {
+          let xoff = 0;
+          for (let x = 0; x < cols; x++) {
+            const index = x + y * cols;
+            const angle = p.noise(xoff, yoff, time * 0.1) * p.TWO_PI * 2;
+            const v = p5.Vector.fromAngle(angle);
+            v.setMag(1);
+            flowField[index] = v;
+            xoff += 0.1;
+          }
+          yoff += 0.1;
+        }
+        
+        // Create particles that will follow the flow field
+        flowParticles = [];
+        for (let i = 0; i < 1000; i++) {
+          flowParticles.push({
+            pos: p.createVector(p.random(p.width), p.random(p.height)),
+            vel: p.createVector(0, 0),
+            acc: p.createVector(0, 0),
+            maxSpeed: p.random(2, 5),
+            color: p.color(p.random(255), 200, 255, 50),
+            prevPos: null,
+            updatePrev: function() {
+              this.prevPos = p.createVector(this.pos.x, this.pos.y);
+            },
+            applyForce: function(force) {
+              this.acc.add(force);
+            },
+            update: function() {
+              this.updatePrev();
+              this.vel.add(this.acc);
+              this.vel.limit(this.maxSpeed);
+              this.pos.add(this.vel);
+              this.acc.mult(0);
+              
+              // Wrap around edges
+              if (this.pos.x > p.width) this.pos.x = 0;
+              if (this.pos.x < 0) this.pos.x = p.width;
+              if (this.pos.y > p.height) this.pos.y = 0;
+              if (this.pos.y < 0) this.pos.y = p.height;
+              
+              // If crossing an edge, don't draw a line
+              if (this.prevPos) {
+                if (p.abs(this.pos.x - this.prevPos.x) > p.width/2 || 
+                    p.abs(this.pos.y - this.prevPos.y) > p.height/2) {
+                  this.updatePrev();
+                }
+              }
+            },
+            follow: function(flowField) {
+              // Find grid position
+              const resolution = 20;
+              const x = Math.floor(this.pos.x / resolution);
+              const y = Math.floor(this.pos.y / resolution);
+              const index = x + y * Math.ceil(p.width / resolution);
+              
+              // Get flow force
+              if (index >= 0 && index < flowField.length) {
+                const force = flowField[index];
+                this.applyForce(force);
+              }
+            },
+            show: function() {
+              p.stroke(this.color);
+              p.strokeWeight(1);
+              if (this.prevPos) {
+                p.line(this.pos.x, this.pos.y, this.prevPos.x, this.prevPos.y);
+              }
+            }
+          });
+          
+          // Initialize prevPos
+          flowParticles[i].updatePrev();
+        }
+      }
+      
+      function createVortex(x, y) {
+        const resolution = 20;
+        const cols = Math.ceil(p.width / resolution);
+        const vortexStrength = 0.5;
+        
+        // Update flow field with vortex influence
+        for (let i = 0; i < flowField.length; i++) {
+          const fieldX = (i % cols) * resolution;
+          const fieldY = Math.floor(i / cols) * resolution;
+          
+          // Calculate angle from mouse to field point
+          const dx = fieldX - x;
+          const dy = fieldY - y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < 100) {
+            // Create swirling vortex effect
+            const angle = Math.atan2(dy, dx) + (Math.PI/2) * (1 - distance/100);
+            const influence = p.map(distance, 0, 100, vortexStrength, 0);
+            
+            // Blend original flow with vortex
+            const vortexVector = p5.Vector.fromAngle(angle);
+            vortexVector.mult(influence);
+            flowField[i].add(vortexVector);
+            flowField[i].setMag(1); // Normalize
+          }
+        }
+      }
+      
+      function drawFlowField() {
+        p.background(0, 0, 10, 25);
+        
+        // Update flow field over time
+        if (p.frameCount % 10 === 0) {
+          time += 0.01;
+          const resolution = 20;
+          const cols = Math.ceil(p.width / resolution);
+          const rows = Math.ceil(p.height / resolution);
+          
+          let yoff = time;
+          for (let y = 0; y < rows; y++) {
+            let xoff = time;
+            for (let x = 0; x < cols; x++) {
+              const index = x + y * cols;
+              const angle = p.noise(xoff, yoff, time) * p.TWO_PI * 4;
+              const v = p5.Vector.fromAngle(angle);
+              v.setMag(1);
+              flowField[index] = v;
+              xoff += 0.1;
+            }
+            yoff += 0.1;
+          }
+        }
+        
+        // Show and update particles
+        for (let particle of flowParticles) {
+          particle.follow(flowField);
+          particle.update();
+          particle.show();
+        }
+        
+        // Display instructions
+        p.fill(255);
+        p.noStroke();
+        p.textAlign(p.CENTER);
+        p.textSize(18);
+        p.text("Drag mouse to create vortices", p.width/2, 30);
+      }
+      
+      // Physics Playground animation
+      function initPhysics() {
+        physicsBodies = [];
+        gravity = p.createVector(0, 0.2);
+        
+        // Create some initial bodies
+        for (let i = 0; i < 10; i++) {
+          createPhysicsBody(p.random(p.width), p.random(p.height/2));
+        }
+      }
+      
+      function createPhysicsBody(x, y) {
+        const body = {
+          position: p.createVector(x, y),
+          velocity: p.createVector(p.random(-1, 1), p.random(-2, 0)),
+          acceleration: p.createVector(0, 0),
+          radius: p.random(10, 30),
+          mass: 0,
+          restitution: 0.8, // Bounciness
+          color: p.color(p.random(255), 200, 255),
+          
+          applyForce: function(force) {
+            // F = ma, so a = F/m
+            let f = p5.Vector.div(force, this.mass);
+            this.acceleration.add(f);
+          },
+          
+          update: function() {
+            this.velocity.add(this.acceleration);
+            this.position.add(this.velocity);
+            this.acceleration.mult(0);
+            
+            // Check boundaries
+            if (this.position.x > p.width - this.radius) {
+              this.position.x = p.width - this.radius;
+              this.velocity.x *= -this.restitution;
+            }
+            if (this.position.x < this.radius) {
+              this.position.x = this.radius;
+              this.velocity.x *= -this.restitution;
+            }
+            if (this.position.y > p.height - this.radius) {
+              this.position.y = p.height - this.radius;
+              this.velocity.y *= -this.restitution;
+              // Add friction when on ground
+              this.velocity.x *= 0.99;
+            }
+            if (this.position.y < this.radius) {
+              this.position.y = this.radius;
+              this.velocity.y *= -this.restitution;
+            }
+          },
+          
+          checkCollision: function(other) {
+            // Simple circle-circle collision detection
+            const d = p.dist(this.position.x, this.position.y, other.position.x, other.position.y);
+            if (d < this.radius + other.radius) {
+              // Calculate collision response
+              const angle = Math.atan2(other.position.y - this.position.y, other.position.x - this.position.x);
+              const targetX = this.position.x + Math.cos(angle) * (this.radius + other.radius);
+              const targetY = this.position.y + Math.sin(angle) * (this.radius + other.radius);
+              const ax = (targetX - other.position.x) * 0.05;
+              const ay = (targetY - other.position.y) * 0.05;
+              
+              this.velocity.x -= ax * other.mass / this.mass;
+              this.velocity.y -= ay * other.mass / this.mass;
+              other.velocity.x += ax * this.mass / other.mass;
+              other.velocity.y += ay * this.mass / other.mass;
+              
+              // Add a little damping to the collision
+              this.velocity.mult(0.99);
+              other.velocity.mult(0.99);
+            }
+          },
+          
+          display: function() {
+            p.noStroke();
+            p.fill(this.color);
+            p.ellipse(this.position.x, this.position.y, this.radius * 2);
+            
+            // Add a highlight
+            p.fill(255, 50);
+            p.ellipse(this.position.x - this.radius * 0.3, this.position.y - this.radius * 0.3, this.radius * 0.8);
+          }
+        };
+        
+        // Set mass based on radius (volume)
+        body.mass = body.radius * body.radius * p.PI;
+        
+        physicsBodies.push(body);
+        
+        // Remove old bodies if we have too many
+        if (physicsBodies.length > 30) {
+          physicsBodies.shift();
+        }
+      }
+      
+      function drawPhysics() {
+        p.background(230, 30, 20);
+        
+        // Draw ground
+        p.noStroke();
+        p.fill(200, 30, 100);
+        p.rect(0, p.height - 20, p.width, 20);
+        
+        // Update physics bodies
+        for (let i = 0; i < physicsBodies.length; i++) {
+          // Apply gravity
+          const gravityForce = p5.Vector.mult(gravity, physicsBodies[i].mass);
+          physicsBodies[i].applyForce(gravityForce);
+          
+          // Check collisions with other bodies
+          for (let j = i + 1; j < physicsBodies.length; j++) {
+            physicsBodies[i].checkCollision(physicsBodies[j]);
+          }
+          
+          physicsBodies[i].update();
+          physicsBodies[i].display();
+        }
+        
+        // Display instructions
+        p.fill(255);
+        p.noStroke();
+        p.textAlign(p.CENTER);
+        p.textSize(18);
+        p.text("Click to add physics objects", p.width/2, 30);
+      }
+      
+      // Audio Visualization animation
+      function initAudio() {
+        audioWaves = [];
+        audioLevel = 0;
+      }
+      
+      function createAudioPulse(x, y) {
+        // Create a new expanding wave
+        audioWaves.push({
+          x: x,
+          y: y,
+          radius: 0,
+          maxRadius: p.random(100, 300),
+          speed: p.random(2, 5),
+          color: p.color(p.random(255), 200, 255, 100),
+          lineWeight: p.random(2, 6)
+        });
+        
+        // Boost audio level
+        audioLevel = 1;
+      }
+      
+      function drawAudio() {
+        p.background(0, 0, 20);
+        
+        // Calculate the beat visualization
+        if (audioLevel > 0) {
+          audioLevel *= 0.95; // Decay
+        }
+        
+        // Draw center audio visualizer
+        const centerX = p.width / 2;
+        const centerY = p.height / 2;
+        const baseBars = 128;
+        const barWidth = (p.TWO_PI) / baseBars;
+        
+        for (let i = 0; i < baseBars; i++) {
+          const angle = i * barWidth;
+          
+          // Calculate bar height using sin and audioLevel
+          const barHeight = 50 + Math.sin(angle * 8 + time) * 20 * (1 + audioLevel * 2);
+          const barHeight2 = 100 + Math.sin(angle * 4 + time * 2) * 30 * (1 + audioLevel);
+          
+          // Get coordinates for the bars
+          const x1 = centerX + Math.cos(angle) * 30;
+          const y1 = centerY + Math.sin(angle) * 30;
+          const x2 = centerX + Math.cos(angle) * barHeight;
+          const y2 = centerY + Math.sin(angle) * barHeight;
+          const x3 = centerX + Math.cos(angle) * barHeight2;
+          const y3 = centerY + Math.sin(angle) * barHeight2;
+          
+          // Draw inner bar (more white)
+          p.strokeWeight(2);
+          p.stroke(time * 10 % 255, 150, 255, 200 * (1 - audioLevel) + 50);
+          p.line(x1, y1, x2, y2);
+          
+          // Draw outer bar (more colorful)
+          p.strokeWeight(1);
+          p.stroke((time * 5 + i) % 255, 200, 255, 150 * audioLevel + 50);
+          p.line(x2, y2, x3, y3);
+        }
+        
+        // Draw frequency circles
+        p.noFill();
+        for (let j = 0; j < 3; j++) {
+          const radius = 150 + j * 30 + audioLevel * 20;
+          p.strokeWeight(2 + audioLevel * 3);
+          p.stroke((time * 20 + j * 60) % 255, 200, 255, 100);
+          p.ellipse(centerX, centerY, radius * 2);
+        }
+        
+        // Update and draw audio waves
+        for (let i = audioWaves.length - 1; i >= 0; i--) {
+          const wave = audioWaves[i];
+          
+          // Update
+          wave.radius += wave.speed;
+          
+          // Draw
+          p.noFill();
+          p.strokeWeight(wave.lineWeight);
+          p.stroke(wave.color);
+          p.ellipse(wave.x, wave.y, wave.radius * 2);
+          
+          // Remove if too large
+          if (wave.radius > wave.maxRadius) {
+            audioWaves.splice(i, 1);
+          }
+        }
+        
+        // Increment time
+        time += 0.05;
+        
+        // Display instructions
+        p.fill(255);
+        p.noStroke();
+        p.textAlign(p.CENTER);
+        p.textSize(18);
+        p.text("Click anywhere to create sound waves", p.width/2, 30);
+      }
+      
+      // Neural Network animation
+      function initNeuralNetwork() {
+        // Create neurons in a network layout
+        neurons = [];
+        connections = [];
+        
+        // Input layer (2 neurons - x,y)
+        const inputLayer = [];
+        for (let i = 0; i < 2; i++) {
+          const neuron = {
+            x: 100,
+            y: 150 + i * 100,
+            value: 0,
+            layer: 0,
+            radius: 15,
+            color: p.color(30, 200, 255)
+          };
+          neurons.push(neuron);
+          inputLayer.push(neuron);
+        }
+        
+        // Hidden layer (4 neurons)
+        const hiddenLayer = [];
+        for (let i = 0; i < 4; i++) {
+          const neuron = {
+            x: 250,
+            y: 100 + i * 70,
+            value: 0,
+            layer: 1,
+            radius: 15,
+            color: p.color(150, 200, 255)
+          };
+          neurons.push(neuron);
+          hiddenLayer.push(neuron);
+        }
+        
+        // Output layer (2 neurons - prediction x,y)
+        const outputLayer = [];
+        for (let i = 0; i < 2; i++) {
+          const neuron = {
+            x: 400,
+            y: 150 + i * 100,
+            value: 0,
+            layer: 2,
+            radius: 15,
+            color: p.color(200, 200, 255)
+          };
+          neurons.push(neuron);
+          outputLayer.push(neuron);
+        }
+        
+        // Create connections with random weights
+        // Input to hidden
+        for (let i = 0; i < inputLayer.length; i++) {
+          for (let j = 0; j < hiddenLayer.length; j++) {
+            connections.push({
+              from: inputLayer[i],
+              to: hiddenLayer[j],
+              weight: p.random(-1, 1),
+              color: p.color(p.random(255), 150, 255, 100)
+            });
+          }
+        }
+        
+        // Hidden to output
+        for (let i = 0; i < hiddenLayer.length; i++) {
+          for (let j = 0; j < outputLayer.length; j++) {
+            connections.push({
+              from: hiddenLayer[i],
+              to: outputLayer[j],
+              weight: p.random(-1, 1),
+              color: p.color(p.random(255), 150, 255, 100)
+            });
+          }
+        }
+        
+        trainingData = [];
+        
+        // Create initial path to follow
+        const pathPoints = 100;
+        for (let i = 0; i < pathPoints; i++) {
+          const angle = (i / pathPoints) * p.TWO_PI;
+          const radius = 50 + Math.sin(angle * 3) * 20;
+          const x = p.width/2 + Math.cos(angle) * radius;
+          const y = p.height/2 + Math.sin(angle) * radius;
+          trainingData.push({x: x, y: y});
+        }
+      }
+      
+      function trainNeuralNetwork(data) {
+        // Very simplified network training visualization
+        // In a real neural network, we'd use backpropagation
+        
+        // Update connection weights based on new data
+        for (let connection of connections) {
+          // Slightly adjust weights - this is just for visualization
+          connection.weight += p.random(-0.1, 0.1);
+          connection.weight = p.constrain(connection.weight, -1, 1);
+          
+          // Update connection color based on weight
+          const hue = p.map(connection.weight, -1, 1, 0, 255);
+          connection.color = p.color(hue, 200, 255, 150);
+        }
+      }
+      
+      function drawNeuralNetwork() {
+        p.background(0, 0, 20);
+        
+        // Draw connections
+        for (let connection of connections) {
+          p.strokeWeight(p.map(Math.abs(connection.weight), 0, 1, 1, 4));
+          p.stroke(connection.color);
+          p.line(connection.from.x, connection.from.y, connection.to.x, connection.to.y);
+        }
+        
+        // Draw neurons
+        for (let neuron of neurons) {
+          p.fill(neuron.color);
+          p.stroke(255);
+          p.strokeWeight(1);
+          p.ellipse(neuron.x, neuron.y, neuron.radius * 2);
+          
+          // Highlight active neurons
+          if (neuron.value > 0.5) {
+            p.noFill();
+            p.strokeWeight(2);
+            p.stroke(255, 255, 255, 150);
+            p.ellipse(neuron.x, neuron.y, neuron.radius * 2.5);
+          }
+        }
+        
+        // Draw path of training data
+        if (trainingData.length > 1) {
+          p.stroke(255, 100);
+          p.strokeWeight(2);
+          p.noFill();
+          p.beginShape();
+          for (let point of trainingData) {
+            p.vertex(point.x, point.y);
+          }
+          p.endShape();
+        }
+        
+        // Update network input with mouse
+        if (p.mouseX > 0 && p.mouseX < p.width && p.mouseY > 0 && p.mouseY < p.height) {
+          // Update input neurons with normalized mouse position
+          neurons[0].value = p.map(p.mouseX, 0, p.width, 0, 1);
+          neurons[1].value = p.map(p.mouseY, 0, p.height, 0, 1);
+          
+          // Feed forward through network
+          for (let i = 2; i < neurons.length; i++) {
+            // Reset hidden and output neurons
+            neurons[i].value = 0;
+          }
+          
+          // Simple feed-forward calculation
+          for (let connection of connections) {
+            connection.to.value += connection.from.value * connection.weight;
+          }
+          
+          // Apply activation function (simplified sigmoid)
+          for (let i = 2; i < neurons.length; i++) {
+            neurons[i].value = 1 / (1 + Math.exp(-neurons[i].value));
+          }
+          
+          // Visualize network output
+          const outX = p.map(neurons[neurons.length-2].value, 0, 1, 0, p.width);
+          const outY = p.map(neurons[neurons.length-1].value, 0, 1, 0, p.height);
+          
+          p.fill(0, 255, 255);
+          p.noStroke();
+          p.ellipse(outX, outY, 10, 10);
+        }
+        
+        // Display instructions
+        p.fill(255);
+        p.noStroke();
+        p.textAlign(p.CENTER);
+        p.textSize(18);
+        p.text("Draw patterns with your mouse to train the network", p.width/2, 30);
+      }
     };
     
     // Randomly select an animation on page load
     document.addEventListener('DOMContentLoaded', function() {
-      const animations = ['particles', 'waves', 'flocking', 'fireworks', 'bubbles', 'matrix', 'starfield', 'geometric'];
+      const animations = ['particles', 'waves', 'flocking', 'fireworks', 'bubbles', 'matrix', 'starfield', 'geometric', 'flow', 'physics', 'audio', 'neural'];
       const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
       switchAnimation(randomAnimation);
     });

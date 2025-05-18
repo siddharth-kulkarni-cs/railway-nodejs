@@ -1,7 +1,7 @@
 module.exports = {
   testEnvironment: 'node',
   verbose: true,
-  testTimeout: 30000, // Increase timeout for E2E tests
+  testTimeout: 30000, // General test timeout
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testPathIgnorePatterns: ['/node_modules/'],
   collectCoverage: true,
