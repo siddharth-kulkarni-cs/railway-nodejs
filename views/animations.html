@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Animation Gallery</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.js"></script>
+  <style>
+    :root {
+      --primary-color: #4a6fa5;
+      --secondary-color: #6e9887;
+      --accent-color: #ffc107;
+      --light-bg: #f8f9fa;
+      --dark-text: #333;
+    }
+    
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--light-bg);
+      color: var(--dark-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .site-header {
+      background-color: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 1rem 0;
+      margin-bottom: 2rem;
+    }
+    
+    .site-title {
+      color: var(--primary-color);
+      font-weight: 700;
+      margin-bottom: 0;
+    }
+    
+    .navbar-custom {
+      background-color: white;
+      padding: 0.5rem 1rem;
+    }
+    
+    .navbar-custom .nav-link {
+      color: var(--primary-color);
+      font-weight: 500;
+      margin: 0 0.5rem;
+      transition: color 0.3s ease;
+    }
+    
+    .navbar-custom .nav-link:hover {
+      color: var(--secondary-color);
+    }
+    
+    main {
+      margin-bottom: 3rem;
+    }
+    
+    .animation-container {
+      margin-bottom: 2rem;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+    }
+    
+    .animation-container:hover {
+      transform: translateY(-5px);
+    }
+    
+    .control-panel {
+      background-color: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+      margin-bottom: 2rem;
+    }
+    
+    .btn-animation {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      margin-right: 0.5rem;
+      transition: background-color 0.3s;
+    }
+    
+    .btn-animation:hover {
+      background-color: #3a5a80;
+    }
+    
+    #currentAnimation {
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+    
+    footer {
+      background-color: white;
+      padding: 1.5rem 0;
+      margin-top: auto;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    }
+    
+    canvas {
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <nav class="navbar navbar-expand-lg navbar-custom">
+        <a class="navbar-brand" href="/">
+          <h1 class="site-title">Product Showcase</h1>
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="/">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/#products">Products</a>
+            </li>
+            <li class="nav-item active">
+              <a class="nav-link" href="/animations">Animations</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/#about">About</a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+  </header>
+  
+  <main class="container">
+    <h2 class="text-center mb-4">
+      <i class="fas fa-magic text-primary mr-2"></i>
+      Animation Gallery
+    </h2>
+    
+    <div class="control-panel">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="mb-0">Choose Animation</h4>
+        <div>
+          <span>Current: <span id="currentAnimation">Particles</span></span>
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-animation" onclick="switchAnimation('particles')">Particles</button>
+        <button class="btn btn-animation" onclick="switchAnimation('waves')">Waves</button>
+        <button class="btn btn-animation" onclick="switchAnimation('flocking')">Flocking</button>
+        <button class="btn btn-animation" onclick="switchAnimation('fireworks')">Fireworks</button>
+      </div>
+    </div>
+    
+    <div class="animation-container" id="canvasContainer">
+      <!-- P5.js canvas will be inserted here -->
+    </div>
+    
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">About This Animation</h4>
+        <p class="card-text" id="animationDescription">
+          Interactive particle system that responds to your mouse movements. Move your cursor across the canvas to interact with the particles.
+        </p>
+      </div>
+    </div>
+  </main>
+  
+  <footer>
+    <div class="container text-center">
+      <span class="text-muted">Siddharth Kulkarni © 2025. All rights reserved.</span>
+    </div>
+  </footer>
+  
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    // Animation state
+    let currentAnimationType = 'particles';
+    let p5Instance = null;
+    
+    // Function to switch between animations
+    function switchAnimation(type) {
+      currentAnimationType = type;
+      document.getElementById('currentAnimation').textContent = type.charAt(0).toUpperCase() + type.slice(1);
+      
+      // Update description
+      const descriptions = {
+        particles: "Interactive particle system that responds to your mouse movements. Move your cursor across the canvas to interact with the particles.",
+        waves: "Mesmerizing wave animation using sine waves with randomized colors. The waves flow across the screen creating beautiful patterns.",
+        flocking: "Simulation of flocking behavior (boids algorithm) where entities follow simple rules to create complex behaviors.",
+        fireworks: "Celebratory fireworks that burst into colorful particles. Click anywhere on the canvas to launch fireworks."
+      };
+      
+      document.getElementById('animationDescription').textContent = descriptions[type];
+      
+      // Remove previous sketch if exists
+      if (p5Instance) {
+        p5Instance.remove();
+      }
+      
+      // Create new sketch
+      p5Instance = new p5(sketch, 'canvasContainer');
+    }
+    
+    // P5.js sketch function
+    const sketch = function(p) {
+      // Variables for different animations
+      let particles = [];
+      let boids = [];
+      let fireworks = [];
+      let gravity;
+      
+      p.setup = function() {
+        const container = document.getElementById('canvasContainer');
+        const canvas = p.createCanvas(container.offsetWidth, 400);
+        p.colorMode(p.HSB, 255);
+        
+        // Initialize based on animation type
+        if (currentAnimationType === 'particles') {
+          // Initialize particles
+          for (let i = 0; i < 100; i++) {
+            particles.push(new Particle());
+          }
+        } else if (currentAnimationType === 'flocking') {
+          // Initialize boids
+          for (let i = 0; i < 50; i++) {
+            boids.push(new Boid(p.random(p.width), p.random(p.height)));
+          }
+        } else if (currentAnimationType === 'fireworks') {
+          // Initialize gravity for fireworks
+          gravity = p.createVector(0, 0.2);
+        }
+      };
+      
+      p.draw = function() {
+        if (currentAnimationType === 'particles') {
+          drawParticles();
+        } else if (currentAnimationType === 'waves') {
+          drawWaves();
+        } else if (currentAnimationType === 'flocking') {
+          drawFlocking();
+        } else if (currentAnimationType === 'fireworks') {
+          drawFireworks();
+        }
+      };
+      
+      p.mousePressed = function() {
+        if (currentAnimationType === 'fireworks' && 
+            p.mouseX > 0 && p.mouseX < p.width && 
+            p.mouseY > 0 && p.mouseY < p.height) {
+          fireworks.push(new Firework(p.mouseX, p.height, p.mouseX, p.mouseY));
+        }
+      };
+      
+      // Particles animation
+      function drawParticles() {
+        p.background(230, 50, 15);
+        
+        for (let i = 0; i < particles.length; i++) {
+          let particle = particles[i];
+          particle.move();
+          particle.display();
+          particle.checkEdges();
+        }
+      }
+      
+      class Particle {
+        constructor() {
+          this.position = p.createVector(p.random(p.width), p.random(p.height));
+          this.velocity = p.createVector(p.random(-2, 2), p.random(-2, 2));
+          this.acceleration = p.createVector(0, 0);
+          this.size = p.random(5, 15);
+          this.color = p.color(p.random(255), 200, 255);
+          this.maxSpeed = 4;
+        }
+        
+        move() {
+          // Create attraction to mouse
+          if (p.mouseX > 0 && p.mouseY > 0) {
+            let mouse = p.createVector(p.mouseX, p.mouseY);
+            let dir = p5.Vector.sub(mouse, this.position);
+            dir.normalize();
+            dir.mult(0.5);
+            this.acceleration = dir;
+          }
+          
+          this.velocity.add(this.acceleration);
+          this.velocity.limit(this.maxSpeed);
+          this.position.add(this.velocity);
+          this.acceleration.mult(0);
+        }
+        
+        display() {
+          p.noStroke();
+          p.fill(this.color);
+          p.ellipse(this.position.x, this.position.y, this.size, this.size);
+        }
+        
+        checkEdges() {
+          if (this.position.x > p.width) this.position.x = 0;
+          if (this.position.x < 0) this.position.x = p.width;
+          if (this.position.y > p.height) this.position.y = 0;
+          if (this.position.y < 0) this.position.y = p.height;
+        }
+      }
+      
+      // Waves animation
+      function drawWaves() {
+        p.background(230, 30, 20);
+        
+        let waveCount = 5;
+        let spacing = p.height / waveCount;
+        
+        for (let j = 0; j < waveCount; j++) {
+          p.beginShape();
+          
+          let baseY = spacing * j + spacing / 2;
+          let hue = (p.frameCount + j * 30) % 255;
+          p.fill(hue, 200, 255, 150);
+          p.noStroke();
+          
+          // Draw the wave
+          p.vertex(0, p.height);
+          for (let i = 0; i <= p.width; i += 10) {
+            let xAngle = p.map(i, 0, p.width, 0, p.TWO_PI * 2);
+            let yAngle = p.map(p.frameCount % 100, 0, 100, 0, p.TWO_PI);
+            let amplitude = p.map(p.sin(xAngle * 0.5 + yAngle), -1, 1, 0, spacing * 0.8);
+            
+            let y = baseY + amplitude;
+            p.vertex(i, y);
+          }
+          p.vertex(p.width, p.height);
+          p.endShape(p.CLOSE);
+        }
+      }
+      
+      // Flocking animation
+      function drawFlocking() {
+        p.background(210, 30, 20);
+        
+        for (let boid of boids) {
+          boid.flock(boids);
+          boid.update();
+          boid.edges();
+          boid.show();
+        }
+      }
+      
+      class Boid {
+        constructor(x, y) {
+          this.position = p.createVector(x, y);
+          this.velocity = p5.Vector.random2D();
+          this.velocity.setMag(p.random(2, 4));
+          this.acceleration = p.createVector();
+          this.maxForce = 0.2;
+          this.maxSpeed = 4;
+          this.size = 5;
+          this.color = p.color(p.random(255), 200, 255);
+        }
+        
+        flock(boids) {
+          let alignment = this.align(boids);
+          let cohesion = this.cohesion(boids);
+          let separation = this.separation(boids);
+          
+          alignment.mult(1.0);
+          cohesion.mult(1.0);
+          separation.mult(1.5);
+          
+          this.acceleration.add(alignment);
+          this.acceleration.add(cohesion);
+          this.acceleration.add(separation);
+        }
+        
+        update() {
+          this.position.add(this.velocity);
+          this.velocity.add(this.acceleration);
+          this.velocity.limit(this.maxSpeed);
+          this.acceleration.mult(0);
+        }
+        
+        show() {
+          p.stroke(this.color);
+          p.strokeWeight(2);
+          p.fill(this.color);
+          
+          p.push();
+          p.translate(this.position.x, this.position.y);
+          p.rotate(this.velocity.heading());
+          p.triangle(0, 0, -this.size * 2, this.size, -this.size * 2, -this.size);
+          p.pop();
+        }
+        
+        edges() {
+          if (this.position.x > p.width) this.position.x = 0;
+          if (this.position.x < 0) this.position.x = p.width;
+          if (this.position.y > p.height) this.position.y = 0;
+          if (this.position.y < 0) this.position.y = p.height;
+        }
+        
+        align(boids) {
+          let perceptionRadius = 50;
+          let steering = p.createVector();
+          let total = 0;
+          
+          for (let other of boids) {
+            let d = p.dist(this.position.x, this.position.y, other.position.x, other.position.y);
+            if (other != this && d < perceptionRadius) {
+              steering.add(other.velocity);
+              total++;
+            }
+          }
+          
+          if (total > 0) {
+            steering.div(total);
+            steering.setMag(this.maxSpeed);
+            steering.sub(this.velocity);
+            steering.limit(this.maxForce);
+          }
+          
+          return steering;
+        }
+        
+        separation(boids) {
+          let perceptionRadius = 30;
+          let steering = p.createVector();
+          let total = 0;
+          
+          for (let other of boids) {
+            let d = p.dist(this.position.x, this.position.y, other.position.x, other.position.y);
+            if (other != this && d < perceptionRadius) {
+              let diff = p5.Vector.sub(this.position, other.position);
+              diff.div(d);
+              steering.add(diff);
+              total++;
+            }
+          }
+          
+          if (total > 0) {
+            steering.div(total);
+            steering.setMag(this.maxSpeed);
+            steering.sub(this.velocity);
+            steering.limit(this.maxForce);
+          }
+          
+          return steering;
+        }
+        
+        cohesion(boids) {
+          let perceptionRadius = 50;
+          let steering = p.createVector();
+          let total = 0;
+          
+          for (let other of boids) {
+            let d = p.dist(this.position.x, this.position.y, other.position.x, other.position.y);
+            if (other != this && d < perceptionRadius) {
+              steering.add(other.position);
+              total++;
+            }
+          }
+          
+          if (total > 0) {
+            steering.div(total);
+            steering.sub(this.position);
+            steering.setMag(this.maxSpeed);
+            steering.sub(this.velocity);
+            steering.limit(this.maxForce);
+          }
+          
+          return steering;
+        }
+      }
+      
+      // Fireworks animation
+      function drawFireworks() {
+        p.background(0, 0, 20, 25);
+        
+        for (let i = fireworks.length - 1; i >= 0; i--) {
+          fireworks[i].update();
+          fireworks[i].show();
+          
+          if (fireworks[i].done()) {
+            fireworks.splice(i, 1);
+          }
+        }
+        
+        // Automatically add fireworks occasionally
+        if (fireworks.length < 5 && p.random(1) < 0.05) {
+          fireworks.push(new Firework(p.random(p.width), p.height, p.random(p.width), p.random(p.height / 2)));
+        }
+      }
+      
+      class Firework {
+        constructor(x1, y1, x2, y2) {
+          this.firework = new FireworkParticle(x1, y1, true);
+          this.target = p.createVector(x2, y2);
+          this.exploded = false;
+          this.particles = [];
+          this.hue = p.random(255);
+        }
+        
+        update() {
+          if (!this.exploded) {
+            this.firework.applyForce(gravity);
+            this.firework.update();
+            
+            // Check if reached target or stopped moving up
+            let d = p.dist(this.firework.pos.x, this.firework.pos.y, this.target.x, this.target.y);
+            
+            if (d < 10 || this.firework.vel.y >= 0) {
+              this.exploded = true;
+              this.explode();
+            }
+          }
+          
+          for (let i = this.particles.length - 1; i >= 0; i--) {
+            this.particles[i].applyForce(gravity);
+            this.particles[i].update();
+            
+            if (this.particles[i].isDead()) {
+              this.particles.splice(i, 1);
+            }
+          }
+        }
+        
+        explode() {
+          const particleCount = 100;
+          for (let i = 0; i < particleCount; i++) {
+            const particle = new FireworkParticle(this.firework.pos.x, this.firework.pos.y, false);
+            this.particles.push(particle);
+          }
+        }
+        
+        done() {
+          return this.exploded && this.particles.length === 0;
+        }
+        
+        show() {
+          if (!this.exploded) {
+            this.firework.show(this.hue);
+          }
+          
+          for (let particle of this.particles) {
+            particle.show(this.hue);
+          }
+        }
+      }
+      
+      class FireworkParticle {
+        constructor(x, y, isFirework) {
+          this.pos = p.createVector(x, y);
+          this.isFirework = isFirework;
+          this.lifespan = 255;
+          
+          if (isFirework) {
+            // Moving upward
+            this.vel = p.createVector(0, p.random(-12, -8));
+          } else {
+            // Explosion particle
+            this.vel = p5.Vector.random2D();
+            this.vel.mult(p.random(2, 10));
+          }
+          
+          this.acc = p.createVector(0, 0);
+        }
+        
+        applyForce(force) {
+          this.acc.add(force);
+        }
+        
+        update() {
+          if (!this.isFirework) {
+            this.vel.mult(0.95);
+            this.lifespan -= 4;
+          }
+          
+          this.vel.add(this.acc);
+          this.pos.add(this.vel);
+          this.acc.mult(0);
+        }
+        
+        show(hue) {
+          if (!this.isFirework) {
+            p.strokeWeight(2);
+            p.stroke(hue, 255, 255, this.lifespan);
+          } else {
+            p.strokeWeight(4);
+            p.stroke(hue, 255, 255);
+          }
+          
+          p.point(this.pos.x, this.pos.y);
+        }
+        
+        isDead() {
+          return this.lifespan < 0;
+        }
+      }
+    };
+    
+    // Initialize the first animation on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      switchAnimation('particles');
+    });
+  </script>
+</body>
+</html> 

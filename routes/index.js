@@ -42,6 +42,11 @@ router.get('/', (req, res) => {
   return;
 });
 
+// New route for animations
+router.get('/animations', (req, res) => {
+  res.sendFile(path.join(__dirname, '../views/animations.html'));
+});
+
 router.get('/word-usage', async (req, res) => {
   let word = req.query.word;
   console.log('Word:', word);
