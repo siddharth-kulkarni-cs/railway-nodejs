@@ -1,18 +1,26 @@
 {
-  "name": "nodejs-app",
+  "name": "contentstack-dictionary",
   "version": "1.0.0",
-  "description": "App to deploy to Railway",
+  "description": "",
   "main": "app.js",
-  "author": "Siddharth Kulkarni",
-  "license": "MIT",
-  "dependencies": {
-    "express": "^4.19.2"
-  },
   "scripts": {
     "start": "node app.js",
-    "build": "npm install --production"
+    "dev": "nodemon app.js",
+    "test": "jest",
+    "test:e2e": "jest tests/e2e.test.js --forceExit",
+    "test:all": "jest --testPathPattern=tests/.*\\.test\\.js --forceExit"
   },
-"engines": {
-    "node": ">=20.0.0"
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jsdom": "^22.1.0",
+    "nodemon": "^3.0.2",
+    "puppeteer": "^21.5.2",
+    "supertest": "^6.3.3"
   }
 }
