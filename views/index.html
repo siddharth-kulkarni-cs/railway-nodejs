@@ -522,7 +522,7 @@
     
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
-    <script src="/javascript/file-sha.js"></script>
+    <script src="/javascript/file-sha-enhanced.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         const fileInput = document.getElementById('shaFileInput');
@@ -553,10 +553,10 @@
           resultDiv.style.display = 'none';
 
           try {
-            // Calculate multiple hashes and extract metadata
+            // Use enhanced metadata extraction
             const [hashes, metadata] = await Promise.all([
               calculateMultipleSHA(file),
-              extractFileMetadata(file)
+              extractEnhancedFileMetadata(file)
             ]);
             
             // Populate hash values
@@ -565,14 +565,14 @@
             document.getElementById('sha384Value').textContent = hashes['SHA-384'];
             document.getElementById('sha512Value').textContent = hashes['SHA-512'];
             
-            // Populate metadata
+            // Populate basic metadata
             document.getElementById('metaFileName').textContent = metadata.name;
             document.getElementById('metaFileSize').textContent = metadata.sizeFormatted;
             document.getElementById('metaFileType').textContent = metadata.type;
             document.getElementById('metaFileExtension').textContent = metadata.extension;
             document.getElementById('metaLastModified').textContent = metadata.lastModified.toLocaleString();
             
-            // Show image metadata if available
+            // Show basic image metadata if available
             const imageMetadataDiv = document.getElementById('imageMetadata');
             if (metadata.image) {
               document.getElementById('imageDimensions').textContent = `${metadata.image.width} × ${metadata.image.height} pixels`;
@@ -582,6 +582,9 @@
               imageMetadataDiv.style.display = 'none';
             }
             
+            // Populate enhanced metadata sections
+            populateEnhancedMetadata(metadata);
+            
             resultDiv.style.display = 'block';
           } catch (error) {
             alert('Error processing file: ' + error.message);
@@ -590,6 +593,185 @@
             calculateBtn.disabled = false;
           }
         });
+        
+        function populateEnhancedMetadata(metadata) {
+          // Clear previous enhanced data
+          const enhancedContainer = document.getElementById('enhancedMetadata');
+          if (enhancedContainer) {
+            enhancedContainer.remove();
+          }
+          
+          // Create enhanced metadata container
+          const container = document.createElement('div');
+          container.id = 'enhancedMetadata';
+          container.className = 'mt-3';
+          
+          let enhancedHTML = '';
+          
+          // File signature analysis
+          if (metadata.signature) {
+            enhancedHTML += createMetadataCard('File Signature Analysis', 'fas fa-fingerprint', 'warning', [
+              `<strong>Detected Type:</strong> ${metadata.signature.detectedType}`,
+              `<strong>File Signature:</strong> <code>${metadata.signature.signature}</code>`,
+              `<strong>Matches Extension:</strong> ${metadata.signature.matchesExtension ? '✅ Yes' : '❌ No'}`,
+              `<strong>Confidence:</strong> ${metadata.signature.confidence.toUpperCase()}`
+            ]);
+          }
+          
+          // Binary analysis
+          if (metadata.binary) {
+            enhancedHTML += createMetadataCard('Binary Analysis', 'fas fa-chart-bar', 'info', [
+              `<strong>Entropy:</strong> ${metadata.binary.entropy} (${metadata.binary.entropyAnalysis})`,
+              `<strong>Randomness Score:</strong> ${metadata.binary.randomnessScore}`,
+              `<strong>Is Binary:</strong> ${metadata.binary.isBinary ? '✅ Yes' : '❌ No'}`,
+              `<strong>Has Null Bytes:</strong> ${metadata.binary.hasNullBytes ? '✅ Yes' : '❌ No'}`,
+              `<strong>Compression:</strong> ${metadata.binary.compressionRatio}`
+            ]);
+          }
+          
+          // Enhanced image metadata
+          if (metadata.image && (metadata.image.exif || metadata.image.colors || metadata.image.technical)) {
+            let imageDetails = [];
+            
+            if (metadata.image.exif) {
+              imageDetails.push(`<strong>EXIF Data:</strong> ${metadata.image.exif.hasEXIF ? '✅ Present' : '❌ Not found'}`);
+              if (metadata.image.exif.hasGPS) {
+                imageDetails.push(`<strong>GPS Data:</strong> ✅ Contains location information`);
+              }
+              if (metadata.image.exif.exifLength) {
+                imageDetails.push(`<strong>EXIF Size:</strong> ${metadata.image.exif.exifLength} bytes`);
+              }
+            }
+            
+            if (metadata.image.colors) {
+              imageDetails.push(`<strong>Unique Colors:</strong> ${metadata.image.colors.uniqueColors.toLocaleString()}`);
+              imageDetails.push(`<strong>Total Pixels:</strong> ${metadata.image.colors.totalPixels.toLocaleString()}`);
+              
+              if (metadata.image.colors.dominantColors && metadata.image.colors.dominantColors.length > 0) {
+                const colorPalette = metadata.image.colors.dominantColors
+                  .map(color => `<span style="display:inline-block;width:20px;height:20px;background:${color.color};border:1px solid #ccc;margin-right:5px;vertical-align:middle;"></span>${color.color}`)
+                  .join('<br>');
+                imageDetails.push(`<strong>Color Palette:</strong><br>${colorPalette}`);
+              }
+            }
+            
+            if (metadata.image.technical) {
+              imageDetails.push(`<strong>Compression Ratio:</strong> ${metadata.image.technical.compressionRatio}`);
+              if (metadata.image.technical.hasTransparency !== undefined) {
+                imageDetails.push(`<strong>Has Transparency:</strong> ${metadata.image.technical.hasTransparency ? '✅ Yes' : '❌ No'}`);
+              }
+              if (metadata.image.technical.isAnimated !== undefined) {
+                imageDetails.push(`<strong>Is Animated:</strong> ${metadata.image.technical.isAnimated ? '✅ Yes' : '❌ No'}`);
+              }
+            }
+            
+            enhancedHTML += createMetadataCard('Enhanced Image Analysis', 'fas fa-image', 'success', imageDetails);
+          }
+          
+          // Text file analysis
+          if (metadata.text) {
+            enhancedHTML += createMetadataCard('Text File Analysis', 'fas fa-file-alt', 'primary', [
+              `<strong>Lines:</strong> ${metadata.text.lineCount.toLocaleString()}`,
+              `<strong>Words:</strong> ${metadata.text.wordCount.toLocaleString()}`,
+              `<strong>Characters:</strong> ${metadata.text.characterCount.toLocaleString()} (${metadata.text.characterCountNoSpaces.toLocaleString()} without spaces)`,
+              `<strong>Average Line Length:</strong> ${metadata.text.averageLineLength.toFixed(1)} characters`,
+              `<strong>Language:</strong> ${metadata.text.language}`,
+              `<strong>Encoding:</strong> ${metadata.text.encoding}`,
+              `<strong>Line Endings:</strong> ${metadata.text.lineEndings}`,
+              `<strong>Contains Unicode:</strong> ${metadata.text.hasUnicode ? '✅ Yes' : '❌ No'}`,
+              `<strong>Is Empty:</strong> ${metadata.text.isEmpty ? '✅ Yes' : '❌ No'}`
+            ]);
+          }
+          
+          // Media file analysis
+          if (metadata.media) {
+            let mediaDetails = [
+              `<strong>Duration:</strong> ${metadata.media.durationFormatted || 'Unknown'}`
+            ];
+            
+            if (metadata.media.width && metadata.media.height) {
+              mediaDetails.push(`<strong>Resolution:</strong> ${metadata.media.width} × ${metadata.media.height}`);
+              mediaDetails.push(`<strong>Aspect Ratio:</strong> ${metadata.media.aspectRatio}`);
+            }
+            
+            if (metadata.media.audioDecodedBytes) {
+              mediaDetails.push(`<strong>Audio Data:</strong> ${(metadata.media.audioDecodedBytes / 1024).toFixed(1)} KB`);
+            }
+            
+            if (metadata.media.error) {
+              mediaDetails.push(`<strong>Error:</strong> ${metadata.media.error}`);
+            }
+            
+            enhancedHTML += createMetadataCard('Media File Analysis', 'fas fa-play-circle', 'info', mediaDetails);
+          }
+          
+          // Web file analysis
+          if (metadata.web) {
+            let webDetails = [];
+            
+            if (metadata.web.title) {
+              webDetails.push(`<strong>Title:</strong> ${metadata.web.title}`);
+            }
+            
+            if (metadata.web.tagCount !== undefined) {
+              webDetails.push(`<strong>HTML Tags:</strong> ${metadata.web.tagCount} (${metadata.web.uniqueTags} unique)`);
+              webDetails.push(`<strong>Links:</strong> ${metadata.web.links || 0}`);
+              webDetails.push(`<strong>Images:</strong> ${metadata.web.images || 0}`);
+              webDetails.push(`<strong>Scripts:</strong> ${metadata.web.scripts || 0}`);
+              webDetails.push(`<strong>Has DOCTYPE:</strong> ${metadata.web.hasDoctype ? '✅ Yes' : '❌ No'}`);
+            }
+            
+            if (metadata.web.ruleCount !== undefined) {
+              webDetails.push(`<strong>CSS Rules:</strong> ${metadata.web.ruleCount}`);
+              webDetails.push(`<strong>Selectors:</strong> ${metadata.web.selectorCount}`);
+              webDetails.push(`<strong>Properties:</strong> ${metadata.web.propertyCount}`);
+              webDetails.push(`<strong>Has Media Queries:</strong> ${metadata.web.hasMediaQueries ? '✅ Yes' : '❌ No'}`);
+              webDetails.push(`<strong>Is Minified:</strong> ${metadata.web.isMinified ? '✅ Yes' : '❌ No'}`);
+            }
+            
+            if (metadata.web.functionCount !== undefined) {
+              webDetails.push(`<strong>Functions:</strong> ${metadata.web.functionCount}`);
+              webDetails.push(`<strong>Variables:</strong> ${metadata.web.variableDeclarations}`);
+              webDetails.push(`<strong>Has Modules:</strong> ${metadata.web.hasModules ? '✅ Yes' : '❌ No'}`);
+              webDetails.push(`<strong>Has Async/Await:</strong> ${metadata.web.hasAsyncAwait ? '✅ Yes' : '❌ No'}`);
+              webDetails.push(`<strong>Complexity Score:</strong> ${metadata.web.complexity}`);
+            }
+            
+            if (webDetails.length > 0) {
+              enhancedHTML += createMetadataCard('Web File Analysis', 'fas fa-code', 'secondary', webDetails);
+            }
+          }
+          
+          // Processing performance
+          if (metadata.analysis) {
+            enhancedHTML += createMetadataCard('Analysis Performance', 'fas fa-tachometer-alt', 'dark', [
+              `<strong>Processing Time:</strong> ${metadata.analysis.processingTime.toFixed(2)} ms`,
+              `<strong>Analysis Confidence:</strong> ${metadata.analysis.confidence.toUpperCase()}`,
+              metadata.analysis.error ? `<strong>Errors:</strong> ${metadata.analysis.error}` : ''
+            ].filter(item => item));
+          }
+          
+          container.innerHTML = enhancedHTML;
+          
+          // Insert after the hash results card
+          const hashCard = resultDiv.querySelector('.card:last-child');
+          hashCard.parentNode.insertBefore(container, hashCard.nextSibling);
+        }
+        
+        function createMetadataCard(title, icon, colorClass, items) {
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-${colorClass} text-white">
+                <h5 class="mb-0">
+                  <i class="${icon} mr-2"></i>${title}
+                </h5>
+              </div>
+              <div class="card-body">
+                ${items.map(item => `<p class="mb-2">${item}</p>`).join('')}
+              </div>
+            </div>
+          `;
+        }
       });
       
       // Function to copy text to clipboard
