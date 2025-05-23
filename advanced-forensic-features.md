@@ -41,25 +41,14 @@ This tool provides **forensic-level file analysis** capabilities typically found
 - **Contextual analysis** of string content
 - **Category statistics** showing string type distribution
 
-### 4. **File Carving (Embedded File Detection)**
-- **Magic number analysis** detecting file signatures within files
-- **Multi-format detection**:
-  - JPEG, PNG, GIF, BMP images
-  - PDF documents
-  - ZIP archives
-  - And more...
-- **Offset mapping** showing exact location of embedded files
-- **Confidence scoring** for detection accuracy
-- **Forensic analysis** of file structure anomalies
-
-### 5. **Cryptographic Pattern Analysis**
+### 4. **Cryptographic Pattern Analysis**
 - **Encryption detection** using entropy analysis
 - **Block cipher identification** (16-byte patterns)
 - **Key schedule pattern detection**
 - **Randomness scoring** and distribution analysis
 - **Cipher algorithm hints** based on patterns
 
-### 6. **Binary Pattern Analysis**
+### 5. **Binary Pattern Analysis**
 - **Null byte analysis** (sparse files, padding)
 - **Repeating pattern detection** (compression indicators)
 - **Sequential byte analysis** (structured data)
@@ -70,26 +59,26 @@ This tool provides **forensic-level file analysis** capabilities typically found
 
 ## 🖼️ **IMAGE-SPECIFIC FORENSICS**
 
-### 7. **QR Code & Barcode Detection**
+### 6. **QR Code & Barcode Detection**
 - **Automatic QR code scanning** in uploaded images
 - **Positioning pattern detection** using image analysis
 - **Confidence scoring** for detection accuracy
 - **Barcode recognition** capabilities
 
-### 8. **Steganography Detection**
+### 7. **Steganography Detection**
 - **LSB (Least Significant Bit) analysis** for hidden data
 - **Pixel variation analysis** detecting embedding patterns
 - **Suspicion level scoring** (High/Medium/Low)
 - **Steganographic pattern identification**
 - **Forensic recommendations** for further analysis
 
-### 9. **JPEG Error Level Analysis (ELA)**
+### 8. **JPEG Error Level Analysis (ELA)**
 - **Image manipulation detection** using compression artifacts
 - **Error level visualization** showing editing regions
 - **Manipulation suspicion scoring**
 - **Forensic-grade analysis** of JPEG compression inconsistencies
 
-### 10. **GPS Location Extraction**
+### 9. **GPS Location Extraction**
 - **EXIF GPS coordinate extraction** from image metadata
 - **Geographic coordinate display** (latitude/longitude)
 - **Google Maps integration** for location viewing
@@ -99,7 +88,7 @@ This tool provides **forensic-level file analysis** capabilities typically found
 
 ## 🎵 **AUDIO FORENSICS**
 
-### 11. **Spectral Analysis**
+### 10. **Spectral Analysis**
 - **Frequency distribution analysis** using Web Audio API
 - **Spectrogram generation** for audio visualization
 - **Sample rate and duration analysis**
@@ -110,25 +99,25 @@ This tool provides **forensic-level file analysis** capabilities typically found
 
 ## 🔍 **ADVANCED ANALYSIS FEATURES**
 
-### 12. **File Signature Verification**
+### 11. **File Signature Verification**
 - **Magic number validation** against file extensions
 - **True file type detection** regardless of extension
 - **File masquerading detection** (security analysis)
 - **Confidence scoring** for file type accuracy
 
-### 13. **Enhanced EXIF Data Analysis**
+### 12. **Enhanced EXIF Data Analysis**
 - **Deep EXIF metadata extraction** from images
 - **GPS data detection** and privacy warnings
 - **Camera information analysis**
 - **Timestamp forensics**
 
-### 14. **Web File Analysis**
+### 13. **Web File Analysis**
 - **HTML structure analysis** (tags, links, scripts)
 - **CSS rule counting** and complexity analysis
 - **JavaScript complexity scoring** and feature detection
 - **Web technology fingerprinting**
 
-### 15. **Text File Intelligence**
+### 14. **Text File Intelligence**
 - **Programming language detection** based on syntax
 - **Encoding analysis** (UTF-8, ASCII, etc.)
 - **Line ending detection** (Windows/Unix/Mac)

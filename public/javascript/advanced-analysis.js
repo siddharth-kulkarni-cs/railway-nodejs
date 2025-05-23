@@ -7,12 +7,12 @@
  * - Real-time Entropy Visualization  
  * - String Extraction Engine
  * - QR Code/Barcode Detection
- * - File Carving (embedded files)
  * - Image Forensics (JPEG ELA)
  * - Geographic Mapping (GPS extraction)
  * - Steganography Detection
  * - Audio Spectral Analysis
- * - File Comparison Tools
+ * - Binary Pattern Analysis
+ * - Cryptographic Pattern Detection
  */
 
 /**
@@ -40,7 +40,6 @@ class AdvancedFileAnalyzer {
             results.hexViewer = this.createHexViewer(uint8Array);
             results.entropyViz = await this.generateEntropyVisualization(uint8Array);
             results.strings = this.extractStrings(uint8Array);
-            results.fileCarving = await this.detectEmbeddedFiles(uint8Array);
             
             // Type-specific advanced analysis
             if (file.type.startsWith('image/')) {
@@ -301,69 +300,6 @@ class AdvancedFileAnalyzer {
             categories[str.type] = (categories[str.type] || 0) + 1;
         });
         return categories;
-    }
-
-    /**
-     * Detect embedded files (file carving)
-     */
-    async detectEmbeddedFiles(data) {
-        const signatures = {
-            'JPEG': { start: [0xFF, 0xD8, 0xFF], end: [0xFF, 0xD9] },
-            'PNG': { start: [0x89, 0x50, 0x4E, 0x47] },
-            'PDF': { start: [0x25, 0x50, 0x44, 0x46] },
-            'ZIP': { start: [0x50, 0x4B, 0x03, 0x04] },
-            'GIF': { start: [0x47, 0x49, 0x46, 0x38] },
-            'BMP': { start: [0x42, 0x4D] }
-        };
-        
-        const embeddedFiles = [];
-        
-        for (const [fileType, sig] of Object.entries(signatures)) {
-            const matches = this.findSignatureMatches(data, sig.start);
-            
-            for (const match of matches) {
-                if (match > 0) { // Not at the beginning (embedded)
-                    embeddedFiles.push({
-                        type: fileType,
-                        offset: match,
-                        offsetHex: match.toString(16).toUpperCase(),
-                        confidence: this.calculateEmbeddedFileConfidence(data, match, sig)
-                    });
-                }
-            }
-        }
-        
-        return {
-            count: embeddedFiles.length,
-            files: embeddedFiles,
-            analysis: embeddedFiles.length > 0 ? 'Potential embedded files detected' : 'No embedded files found'
-        };
-    }
-
-    findSignatureMatches(data, signature) {
-        const matches = [];
-        
-        for (let i = 0; i <= data.length - signature.length; i++) {
-            let found = true;
-            for (let j = 0; j < signature.length; j++) {
-                if (data[i + j] !== signature[j]) {
-                    found = false;
-                    break;
-                }
-            }
-            if (found) {
-                matches.push(i);
-            }
-        }
-        
-        return matches;
-    }
-
-    calculateEmbeddedFileConfidence(data, offset, signature) {
-        // Simple confidence based on context
-        if (offset === 0) return 'Low'; // File header
-        if (offset < 1024) return 'Medium'; // Near beginning
-        return 'High'; // Deep in file
     }
 
     /**
