@@ -297,9 +297,9 @@
             <div class="search-card">
               <div class="d-flex align-items-center mb-3">
                 <i class="fas fa-fingerprint fa-2x text-primary mr-3"></i>
-                <h2 class="mb-0">Multiple SHA Hash Calculator</h2>
+                <h2 class="mb-0">Professional File Forensics Tool</h2>
               </div>
-              <p class="lead mb-4">Calculate SHA-1, SHA-256, SHA-384, and SHA-512 hashes of any file securely in your browser.  Your file does not leave your browser.  It's private and secure.</p>
+              <p class="lead mb-4">Professional-grade file analysis with forensic capabilities: SHA hashes, hex viewer, entropy visualization, string extraction, file carving, steganography detection, and more. All processing happens in your browser for maximum privacy and security.</p>
               
               <div class="custom-file mb-3">
                 <input type="file" class="custom-file-input" id="shaFileInput" accept="*/*">
@@ -311,14 +311,14 @@
               </div>
               
               <button id="calculateShaBtn" class="btn btn-primary btn-lg btn-block" disabled>
-                <i class="fas fa-calculator mr-2"></i>Calculate Hashes & Extract Metadata
+                <i class="fas fa-microscope mr-2"></i>Perform Advanced Forensic Analysis
               </button>
               
               <div id="shaLoading" class="text-center mt-3" style="display: none;">
                 <div class="spinner-border text-primary" role="status">
                   <span class="sr-only">Processing...</span>
                 </div>
-                <p class="mt-2 text-muted">Calculating hashes and extracting metadata...</p>
+                <p class="mt-2 text-muted">Performing forensic analysis and extracting metadata...</p>
               </div>
               
               <div id="shaResult" class="mt-4" style="display: none;">
@@ -466,7 +466,7 @@
                   <i class="icon fas fa-shield-alt"></i>
                   File Analysis Tool
                 </h3>
-                <p class="product-description">Calculate multiple SHA hashes (SHA-1, SHA-256, SHA-384, SHA-512) and extract metadata from any file securely in your browser.</p>
+                <p class="product-description">Professional forensic analysis with hex viewer, entropy visualization, string extraction, file carving, steganography detection, and cryptographic analysis. Calculate multiple SHA hashes securely in your browser.</p>
                 <a href="#file-sha" class="btn btn-feature">
                   <i class="fas fa-play-circle mr-2"></i>Try Now
                 </a>
@@ -523,6 +523,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
     <script src="/javascript/file-sha-enhanced.js"></script>
+    <script src="/javascript/advanced-analysis.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         const fileInput = document.getElementById('shaFileInput');
@@ -530,6 +531,7 @@
         const resultDiv = document.getElementById('shaResult');
         const loadingDiv = document.getElementById('shaLoading');
         const fileName = document.getElementById('selectedFileName');
+        const advancedAnalyzer = new AdvancedFileAnalyzer();
 
         fileInput.addEventListener('change', function() {
           const file = this.files[0];
@@ -553,10 +555,11 @@
           resultDiv.style.display = 'none';
 
           try {
-            // Use enhanced metadata extraction
-            const [hashes, metadata] = await Promise.all([
+            // Use enhanced metadata extraction AND advanced analysis
+            const [hashes, metadata, advancedResults] = await Promise.all([
               calculateMultipleSHA(file),
-              extractEnhancedFileMetadata(file)
+              extractEnhancedFileMetadata(file),
+              advancedAnalyzer.analyzeFile(file)
             ]);
             
             // Populate hash values
@@ -585,6 +588,9 @@
             // Populate enhanced metadata sections
             populateEnhancedMetadata(metadata);
             
+            // Populate ADVANCED forensic analysis
+            populateAdvancedAnalysis(advancedResults);
+            
             resultDiv.style.display = 'block';
           } catch (error) {
             alert('Error processing file: ' + error.message);
@@ -593,6 +599,512 @@
             calculateBtn.disabled = false;
           }
         });
+        
+        function populateAdvancedAnalysis(advanced) {
+          // Clear previous advanced data
+          const advancedContainer = document.getElementById('advancedAnalysis');
+          if (advancedContainer) {
+            advancedContainer.remove();
+          }
+          
+          // Create advanced analysis container
+          const container = document.createElement('div');
+          container.id = 'advancedAnalysis';
+          container.className = 'mt-4';
+          
+          let advancedHTML = '<h3 class="text-center mb-4"><i class="fas fa-microscope mr-2"></i>Advanced Forensic Analysis</h3>';
+          
+          // Interactive Hex Viewer
+          if (advanced.hexViewer) {
+            advancedHTML += createHexViewer(advanced.hexViewer);
+          }
+          
+          // Entropy Visualization
+          if (advanced.entropyViz) {
+            advancedHTML += createEntropyVisualization(advanced.entropyViz);
+          }
+          
+          // String Extraction
+          if (advanced.strings) {
+            advancedHTML += createStringAnalysis(advanced.strings);
+          }
+          
+          // File Carving Results
+          if (advanced.fileCarving) {
+            advancedHTML += createFileCarvingResults(advanced.fileCarving);
+          }
+          
+          // Binary Pattern Analysis
+          if (advanced.binaryPatterns) {
+            advancedHTML += createBinaryPatternAnalysis(advanced.binaryPatterns);
+          }
+          
+          // Cryptographic Analysis
+          if (advanced.cryptoAnalysis) {
+            advancedHTML += createCryptoAnalysis(advanced.cryptoAnalysis);
+          }
+          
+          // Image-specific advanced features
+          if (advanced.qrCodes) {
+            advancedHTML += createQRCodeAnalysis(advanced.qrCodes);
+          }
+          
+          if (advanced.steganography) {
+            advancedHTML += createSteganographyAnalysis(advanced.steganography);
+          }
+          
+          if (advanced.imageForensics) {
+            advancedHTML += createImageForensics(advanced.imageForensics);
+          }
+          
+          if (advanced.geoLocation && advanced.geoLocation.hasGPS) {
+            advancedHTML += createGeoLocationAnalysis(advanced.geoLocation);
+          }
+          
+          // Audio analysis
+          if (advanced.spectralAnalysis) {
+            advancedHTML += createSpectralAnalysis(advanced.spectralAnalysis);
+          }
+          
+          container.innerHTML = advancedHTML;
+          
+          // Insert after existing results
+          resultDiv.appendChild(container);
+        }
+        
+        function createHexViewer(hexData) {
+          let html = `
+            <div class="card mb-3">
+              <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-code mr-2"></i>Interactive Hex Viewer
+                  <span class="badge badge-light ml-2">${hexData.totalBytes.toLocaleString()} bytes</span>
+                </h5>
+              </div>
+              <div class="card-body p-0">
+                <div class="hex-viewer" style="font-family: 'Courier New', monospace; font-size: 12px; background: #000; color: #0f0; padding: 15px; max-height: 400px; overflow-y: auto;">
+          `;
+          
+          hexData.hexRows.forEach(row => {
+            html += `
+              <div class="hex-row" style="margin-bottom: 2px;">
+                <span style="color: #888; margin-right: 15px;">${row.offset}</span>
+                <span style="margin-right: 15px;">${row.hex}</span>
+                <span style="color: #ff0; background: rgba(255,255,0,0.1); padding: 0 5px;">${row.ascii}</span>
+              </div>
+            `;
+          });
+          
+          if (hexData.hasMore) {
+            html += '<div class="text-center" style="color: #888; margin-top: 10px;">... (showing first 2KB)</div>';
+          }
+          
+          html += `
+                </div>
+              </div>
+            </div>
+          `;
+          
+          return html;
+        }
+        
+        function createEntropyVisualization(entropyData) {
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-chart-area mr-2"></i>Entropy Visualization
+                  <span class="badge badge-light ml-2">${entropyData.data.length} blocks</span>
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="text-center mb-3">
+                  <img src="${entropyData.visualization}" alt="Entropy Graph" class="img-fluid" style="max-width: 100%; border: 1px solid #ddd;">
+                </div>
+                <div class="row">
+                  <div class="col-md-6">
+                    <p><strong>High Entropy Regions:</strong> ${entropyData.analysis.highEntropyPercentage}%</p>
+                    <p><strong>Low Entropy Regions:</strong> ${entropyData.analysis.lowEntropyPercentage}%</p>
+                  </div>
+                  <div class="col-md-6">
+                    <p><strong>Suspicious Regions:</strong> ${entropyData.analysis.suspiciousRegions.length}</p>
+                    <p><strong>Structured Regions:</strong> ${entropyData.analysis.structuredRegions.length}</p>
+                  </div>
+                </div>
+                <div class="mt-2">
+                  <small class="text-muted">
+                    <span style="color: #0066cc;">█</span> Low entropy (structured) 
+                    <span style="color: #ffaa00;">█</span> Medium entropy 
+                    <span style="color: #ff6600;">█</span> High entropy 
+                    <span style="color: #ff0000;">█</span> Very high (encrypted/random)
+                  </small>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        
+        function createStringAnalysis(stringData) {
+          let html = `
+            <div class="card mb-3">
+              <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-search mr-2"></i>String Extraction
+                  <span class="badge badge-light ml-2">${stringData.total} strings found</span>
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="row mb-3">
+          `;
+          
+          // Show string categories
+          for (const [category, count] of Object.entries(stringData.categories)) {
+            html += `<div class="col-md-4"><span class="badge badge-info">${category}</span> ${count}</div>`;
+          }
+          
+          html += `
+                </div>
+                <div style="max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+          `;
+          
+          // Show first 20 strings
+          const displayStrings = stringData.strings.slice(0, 20);
+          displayStrings.forEach(str => {
+            const colorClass = getStringTypeColor(str.type);
+            html += `
+              <div class="string-item mb-2" style="border-left: 3px solid ${colorClass}; padding-left: 8px;">
+                <span class="badge badge-secondary" style="font-size: 10px;">0x${str.offset.toString(16).toUpperCase()}</span>
+                <span class="badge badge-primary">${str.type}</span>
+                <code style="font-size: 11px;">${escapeHtml(str.content.substring(0, 80))}${str.content.length > 80 ? '...' : ''}</code>
+              </div>
+            `;
+          });
+          
+          if (stringData.strings.length > 20) {
+            html += `<div class="text-center"><em>... and ${stringData.strings.length - 20} more strings</em></div>`;
+          }
+          
+          html += `
+                </div>
+              </div>
+            </div>
+          `;
+          
+          return html;
+        }
+        
+        function createFileCarvingResults(carvingData) {
+          let html = `
+            <div class="card mb-3">
+              <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                  <i class="fas fa-search-plus mr-2"></i>File Carving Analysis
+                  <span class="badge badge-dark ml-2">${carvingData.count} potential files</span>
+                </h5>
+              </div>
+              <div class="card-body">
+                <p class="mb-3"><strong>Analysis:</strong> ${carvingData.analysis}</p>
+          `;
+          
+          if (carvingData.count > 0) {
+            html += `
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>File Type</th>
+                      <th>Offset</th>
+                      <th>Offset (Hex)</th>
+                      <th>Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+            `;
+            
+            carvingData.files.forEach(file => {
+              html += `
+                <tr>
+                  <td><span class="badge badge-info">${file.type}</span></td>
+                  <td>${file.offset.toLocaleString()}</td>
+                  <td><code>0x${file.offsetHex}</code></td>
+                  <td><span class="badge badge-${file.confidence === 'High' ? 'success' : file.confidence === 'Medium' ? 'warning' : 'secondary'}">${file.confidence}</span></td>
+                </tr>
+              `;
+            });
+            
+            html += `
+                  </tbody>
+                </table>
+              </div>
+            `;
+          }
+          
+          html += `
+              </div>
+            </div>
+          `;
+          
+          return html;
+        }
+        
+        function createBinaryPatternAnalysis(patterns) {
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-chart-pie mr-2"></i>Binary Pattern Analysis
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <p><strong>Null Bytes:</strong> ${patterns.nullBytes.toLocaleString()}</p>
+                    <p><strong>Repeating Bytes:</strong> ${patterns.repeatingBytes.toLocaleString()}</p>
+                    <p><strong>Sequential Bytes:</strong> ${patterns.sequentialBytes.toLocaleString()}</p>
+                    <p><strong>Randomness Score:</strong> ${patterns.randomness}%</p>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="alert alert-light">
+                      <strong>Analysis:</strong>
+                      <ul class="mb-0 mt-2">
+                        ${patterns.analysis.map(item => `<li>${item}</li>`).join('')}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        
+        function createCryptoAnalysis(crypto) {
+          const alertClass = crypto.possibleEncryption ? 'alert-warning' : 'alert-success';
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-shield-alt mr-2"></i>Cryptographic Analysis
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="alert ${alertClass}">
+                  <strong>Encryption Detected:</strong> ${crypto.possibleEncryption ? '⚠️ POSSIBLE' : '✅ UNLIKELY'}
+                  <br><strong>Entropy Score:</strong> ${crypto.entropy.toFixed(3)}/8.0
+                </div>
+                ${crypto.keySchedulePatterns.length > 0 ? `
+                  <div class="mt-3">
+                    <strong>Key Schedule Patterns:</strong>
+                    <ul>${crypto.keySchedulePatterns.map(pattern => `<li>${pattern}</li>`).join('')}</ul>
+                  </div>
+                ` : ''}
+                ${crypto.blockCipherIndicators.length > 0 ? `
+                  <div class="mt-3">
+                    <strong>Block Cipher Indicators:</strong>
+                    <ul>${crypto.blockCipherIndicators.map(indicator => `<li>${indicator}</li>`).join('')}</ul>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }
+        
+        function createQRCodeAnalysis(qrData) {
+          if (qrData.error) {
+            return `
+              <div class="card mb-3">
+                <div class="card-header bg-secondary text-white">
+                  <h5 class="mb-0"><i class="fas fa-qrcode mr-2"></i>QR Code Analysis</h5>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted">${qrData.error}</p>
+                </div>
+              </div>
+            `;
+          }
+          
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-qrcode mr-2"></i>QR Code / Barcode Analysis
+                </h5>
+              </div>
+              <div class="card-body">
+                <p><strong>QR Code Detected:</strong> ${qrData.hasQRCode ? '✅ YES' : '❌ NO'}</p>
+                <p><strong>Positioning Patterns:</strong> ${qrData.positioningPatterns}</p>
+                <p><strong>Detection Confidence:</strong> <span class="badge badge-${qrData.confidence === 'High' ? 'success' : 'warning'}">${qrData.confidence}</span></p>
+                <small class="text-muted">${qrData.note}</small>
+              </div>
+            </div>
+          `;
+        }
+        
+        function createSteganographyAnalysis(stegoData) {
+          if (stegoData.error) {
+            return `
+              <div class="card mb-3">
+                <div class="card-header bg-secondary text-white">
+                  <h5 class="mb-0"><i class="fas fa-eye-slash mr-2"></i>Steganography Analysis</h5>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted">${stegoData.error}</p>
+                </div>
+              </div>
+            `;
+          }
+          
+          const alertClass = stegoData.suspicionLevel === 'High' ? 'alert-danger' : 
+                           stegoData.suspicionLevel === 'Medium' ? 'alert-warning' : 'alert-success';
+          
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-purple text-white" style="background-color: #6f42c1 !important;">
+                <h5 class="mb-0">
+                  <i class="fas fa-eye-slash mr-2"></i>Steganography Detection
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="alert ${alertClass}">
+                  <strong>Suspicion Level:</strong> ${stegoData.suspicionLevel}
+                  <br><strong>LSB Change Ratio:</strong> ${stegoData.lsbChangeRatio}
+                </div>
+                <p><strong>Analysis:</strong> ${stegoData.analysis}</p>
+                <p><strong>Recommendation:</strong> ${stegoData.recommendation}</p>
+              </div>
+            </div>
+          `;
+        }
+        
+        function createImageForensics(forensics) {
+          if (!forensics.applicable) {
+            return `
+              <div class="card mb-3">
+                <div class="card-header bg-secondary text-white">
+                  <h5 class="mb-0"><i class="fas fa-search-plus mr-2"></i>Image Forensics (ELA)</h5>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted">${forensics.reason}</p>
+                </div>
+              </div>
+            `;
+          }
+          
+          if (forensics.error) {
+            return `
+              <div class="card mb-3">
+                <div class="card-header bg-secondary text-white">
+                  <h5 class="mb-0"><i class="fas fa-search-plus mr-2"></i>Image Forensics (ELA)</h5>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted">${forensics.error}</p>
+                </div>
+              </div>
+            `;
+          }
+          
+          const alertClass = forensics.manipulationSuspicion === 'High' ? 'alert-danger' : 
+                           forensics.manipulationSuspicion === 'Medium' ? 'alert-warning' : 'alert-success';
+          
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-search-plus mr-2"></i>JPEG Error Level Analysis
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="alert ${alertClass}">
+                  <strong>Manipulation Suspicion:</strong> ${forensics.manipulationSuspicion}
+                  <br><strong>Average Error Level:</strong> ${forensics.averageErrorLevel}
+                  <br><strong>Maximum Error Level:</strong> ${forensics.maximumErrorLevel}
+                </div>
+                <p><strong>Analysis:</strong> ${forensics.analysis}</p>
+              </div>
+            </div>
+          `;
+        }
+        
+        function createGeoLocationAnalysis(geoData) {
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-map-marker-alt mr-2"></i>Geographic Location
+                </h5>
+              </div>
+              <div class="card-body">
+                <p><strong>GPS Coordinates:</strong> ${geoData.locationString}</p>
+                <p><strong>Latitude:</strong> ${geoData.latitude}</p>
+                <p><strong>Longitude:</strong> ${geoData.longitude}</p>
+                <a href="${geoData.mapUrl}" target="_blank" class="btn btn-primary btn-sm">
+                  <i class="fas fa-external-link-alt mr-1"></i>View on Google Maps
+                </a>
+              </div>
+            </div>
+          `;
+        }
+        
+        function createSpectralAnalysis(spectralData) {
+          if (spectralData.error) {
+            return `
+              <div class="card mb-3">
+                <div class="card-header bg-secondary text-white">
+                  <h5 class="mb-0"><i class="fas fa-wave-square mr-2"></i>Spectral Analysis</h5>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted">${spectralData.error}</p>
+                </div>
+              </div>
+            `;
+          }
+          
+          return `
+            <div class="card mb-3">
+              <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                  <i class="fas fa-wave-square mr-2"></i>Audio Spectral Analysis
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <p><strong>Sample Rate:</strong> ${spectralData.sampleRate} Hz</p>
+                    <p><strong>Duration:</strong> ${spectralData.duration} seconds</p>
+                    <p><strong>Total Samples:</strong> ${spectralData.samples.toLocaleString()}</p>
+                  </div>
+                  <div class="col-md-6">
+                    <p><strong>Low Frequencies:</strong> ${spectralData.frequencyDistribution.low}</p>
+                    <p><strong>Mid Frequencies:</strong> ${spectralData.frequencyDistribution.mid}</p>
+                    <p><strong>High Frequencies:</strong> ${spectralData.frequencyDistribution.high}</p>
+                  </div>
+                </div>
+                <p class="mt-3"><strong>Analysis:</strong> ${spectralData.analysis}</p>
+              </div>
+            </div>
+          `;
+        }
+        
+        // Helper functions
+        function getStringTypeColor(type) {
+          const colors = {
+            'URL': '#007bff',
+            'Email': '#28a745',
+            'IP Address': '#dc3545',
+            'File Path': '#fd7e14',
+            'Registry Key': '#6610f2',
+            'UUID': '#e83e8c',
+            'Base64': '#20c997',
+            'Hex String': '#6f42c1',
+            'Text': '#6c757d'
+          };
+          return colors[type] || '#6c757d';
+        }
+        
+        function escapeHtml(text) {
+          const div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        }
         
         function populateEnhancedMetadata(metadata) {
           // Clear previous enhanced data
