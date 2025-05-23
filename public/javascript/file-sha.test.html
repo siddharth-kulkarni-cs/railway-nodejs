@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File SHA Functions - Unit Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-suite {
+            margin-bottom: 30px;
+        }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #ccc;
+            background: #f9f9f9;
+        }
+        .test-case.pass {
+            border-left-color: #4CAF50;
+            background: #f1f8e9;
+        }
+        .test-case.fail {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        .test-case.pending {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 4px;
+        }
+        .error-details {
+            color: #d32f2f;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        .progress {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <h1>File SHA Functions - Unit Tests</h1>
+    
+    <div class="test-container">
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+        <div class="progress">
+            <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+        </div>
+        <div id="testResults" class="test-results" style="display: none;">
+            <strong>Test Results:</strong>
+            <div id="summaryResults"></div>
+        </div>
+    </div>
+
+    <div id="testOutput"></div>
+
+    <script src="file-sha.js"></script>
+    <script>
+        // Simple test framework
+        class TestRunner {
+            constructor() {
+                this.tests = [];
+                this.results = {
+                    passed: 0,
+                    failed: 0,
+                    pending: 0,
+                    total: 0
+                };
+            }
+
+            describe(suiteName, testFn) {
+                const suite = { name: suiteName, tests: [] };
+                const oldIt = this.it;
+                this.it = (testName, testFn) => {
+                    suite.tests.push({ name: testName, fn: testFn });
+                };
+                testFn();
+                this.it = oldIt;
+                this.tests.push(suite);
+            }
+
+            it(testName, testFn) {
+                // This will be overridden within describe blocks
+            }
+
+            async runTests() {
+                this.results = { passed: 0, failed: 0, pending: 0, total: 0 };
+                const output = document.getElementById('testOutput');
+                output.innerHTML = '';
+
+                let totalTests = 0;
+                this.tests.forEach(suite => {
+                    totalTests += suite.tests.length;
+                });
+                this.results.total = totalTests;
+
+                let currentTest = 0;
+
+                for (const suite of this.tests) {
+                    const suiteDiv = document.createElement('div');
+                    suiteDiv.className = 'test-suite';
+                    suiteDiv.innerHTML = `<div class="test-container"><h2>${suite.name}</h2></div>`;
+                    output.appendChild(suiteDiv);
+
+                    for (const test of suite.tests) {
+                        currentTest++;
+                        const progress = (currentTest / totalTests) * 100;
+                        document.getElementById('progressBar').style.width = progress + '%';
+
+                        const testDiv = document.createElement('div');
+                        testDiv.className = 'test-case pending';
+                        testDiv.innerHTML = `<strong>${test.name}</strong> - Running...`;
+                        suiteDiv.querySelector('.test-container').appendChild(testDiv);
+
+                        try {
+                            await test.fn();
+                            testDiv.className = 'test-case pass';
+                            testDiv.innerHTML = `<strong>${test.name}</strong> - ✓ PASSED`;
+                            this.results.passed++;
+                        } catch (error) {
+                            testDiv.className = 'test-case fail';
+                            testDiv.innerHTML = `<strong>${test.name}</strong> - ✗ FAILED<div class="error-details">${error.message}</div>`;
+                            this.results.failed++;
+                        }
+
+                        // Small delay to show progress
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                }
+
+                this.showResults();
+            }
+
+            showResults() {
+                const resultsDiv = document.getElementById('testResults');
+                const summaryDiv = document.getElementById('summaryResults');
+                
+                resultsDiv.style.display = 'block';
+                summaryDiv.innerHTML = `
+                    <div>Total Tests: ${this.results.total}</div>
+                    <div style="color: #4CAF50;">Passed: ${this.results.passed}</div>
+                    <div style="color: #f44336;">Failed: ${this.results.failed}</div>
+                    <div>Success Rate: ${((this.results.passed / this.results.total) * 100).toFixed(1)}%</div>
+                `;
+            }
+        }
+
+        const testRunner = new TestRunner();
+
+        // Helper functions for testing
+        function createTestFile(content, type = 'text/plain', name = 'test.txt') {
+            const blob = new Blob([content], { type });
+            const file = new File([blob], name, { 
+                type, 
+                lastModified: Date.now() 
+            });
+            return file;
+        }
+
+        function createTestImageFile(width = 100, height = 100, name = 'test.png') {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw a simple pattern
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(0, 0, width/2, height/2);
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(width/2, 0, width/2, height/2);
+            ctx.fillStyle = '#0000ff';
+            ctx.fillRect(0, height/2, width/2, height/2);
+            ctx.fillStyle = '#ffff00';
+            ctx.fillRect(width/2, height/2, width/2, height/2);
+
+            return new Promise(resolve => {
+                canvas.toBlob(blob => {
+                    const file = new File([blob], name, { 
+                        type: 'image/png',
+                        lastModified: Date.now()
+                    });
+                    resolve(file);
+                });
+            });
+        }
+
+        function assertThrows(fn, expectedError) {
+            try {
+                fn();
+                throw new Error('Expected function to throw an error');
+            } catch (error) {
+                if (!error.message.includes(expectedError)) {
+                    throw new Error(`Expected error containing "${expectedError}", got "${error.message}"`);
+                }
+            }
+        }
+
+        function assertEqual(actual, expected, message = '') {
+            if (actual !== expected) {
+                throw new Error(`${message} Expected: ${expected}, Actual: ${actual}`);
+            }
+        }
+
+        function assertTrue(condition, message = '') {
+            if (!condition) {
+                throw new Error(`${message} Expected condition to be true`);
+            }
+        }
+
+        function assertExists(value, message = '') {
+            if (value === null || value === undefined) {
+                throw new Error(`${message} Expected value to exist`);
+            }
+        }
+
+        // Test suites
+        testRunner.describe('formatFileSize', () => {
+            testRunner.it('should format bytes correctly', () => {
+                assertEqual(formatFileSize(0), '0 Bytes');
+                assertEqual(formatFileSize(500), '500 Bytes');
+                assertEqual(formatFileSize(1024), '1 KB');
+                assertEqual(formatFileSize(1536), '1.5 KB');
+                assertEqual(formatFileSize(1048576), '1 MB');
+                assertEqual(formatFileSize(1073741824), '1 GB');
+                assertEqual(formatFileSize(1099511627776), '1 TB');
+            });
+
+            testRunner.it('should handle decimal places correctly', () => {
+                assertEqual(formatFileSize(1536), '1.5 KB');
+                assertEqual(formatFileSize(2560), '2.5 KB');
+                assertEqual(formatFileSize(1572864), '1.5 MB');
+            });
+        });
+
+        testRunner.describe('calculateMultipleSHA', () => {
+            testRunner.it('should calculate hashes for text file', async () => {
+                const file = createTestFile('Hello, World!');
+                const hashes = await calculateMultipleSHA(file);
+                
+                assertExists(hashes['SHA-1'], 'SHA-1 hash should exist');
+                assertExists(hashes['SHA-256'], 'SHA-256 hash should exist');
+                assertExists(hashes['SHA-384'], 'SHA-384 hash should exist');
+                assertExists(hashes['SHA-512'], 'SHA-512 hash should exist');
+                
+                // Verify hash lengths
+                assertEqual(hashes['SHA-1'].length, 40, 'SHA-1 should be 40 characters');
+                assertEqual(hashes['SHA-256'].length, 64, 'SHA-256 should be 64 characters');
+                assertEqual(hashes['SHA-384'].length, 96, 'SHA-384 should be 96 characters');
+                assertEqual(hashes['SHA-512'].length, 128, 'SHA-512 should be 128 characters');
+            });
+
+            testRunner.it('should produce consistent hashes for same content', async () => {
+                const file1 = createTestFile('test content');
+                const file2 = createTestFile('test content');
+                
+                const hashes1 = await calculateMultipleSHA(file1);
+                const hashes2 = await calculateMultipleSHA(file2);
+                
+                assertEqual(hashes1['SHA-256'], hashes2['SHA-256'], 'SHA-256 hashes should match');
+                assertEqual(hashes1['SHA-512'], hashes2['SHA-512'], 'SHA-512 hashes should match');
+            });
+
+            testRunner.it('should produce different hashes for different content', async () => {
+                const file1 = createTestFile('content1');
+                const file2 = createTestFile('content2');
+                
+                const hashes1 = await calculateMultipleSHA(file1);
+                const hashes2 = await calculateMultipleSHA(file2);
+                
+                assertTrue(hashes1['SHA-256'] !== hashes2['SHA-256'], 'Different content should produce different SHA-256');
+                assertTrue(hashes1['SHA-512'] !== hashes2['SHA-512'], 'Different content should produce different SHA-512');
+            });
+
+            testRunner.it('should handle empty file', async () => {
+                const file = createTestFile('');
+                const hashes = await calculateMultipleSHA(file);
+                
+                assertExists(hashes['SHA-256'], 'Should calculate hash for empty file');
+                assertEqual(hashes['SHA-256'].length, 64, 'Empty file SHA-256 should be 64 characters');
+            });
+
+            testRunner.it('should handle large content', async () => {
+                const largeContent = 'A'.repeat(10000);
+                const file = createTestFile(largeContent);
+                const hashes = await calculateMultipleSHA(file);
+                
+                assertExists(hashes['SHA-256'], 'Should handle large files');
+                assertEqual(hashes['SHA-256'].length, 64, 'Large file SHA-256 should be 64 characters');
+            });
+        });
+
+        testRunner.describe('calculateFileSHA (legacy)', () => {
+            testRunner.it('should return SHA-256 hash as string', async () => {
+                const file = createTestFile('Hello, World!');
+                const hash = await calculateFileSHA(file);
+                
+                assertTrue(typeof hash === 'string', 'Should return string');
+                assertEqual(hash.length, 64, 'SHA-256 should be 64 characters');
+            });
+
+            testRunner.it('should match SHA-256 from calculateMultipleSHA', async () => {
+                const file = createTestFile('test content');
+                const legacyHash = await calculateFileSHA(file);
+                const multipleHashes = await calculateMultipleSHA(file);
+                
+                assertEqual(legacyHash, multipleHashes['SHA-256'], 'Legacy function should match SHA-256 from multiple function');
+            });
+        });
+
+        testRunner.describe('extractFileMetadata', () => {
+            testRunner.it('should extract basic file metadata', async () => {
+                const file = createTestFile('test content', 'text/plain', 'example.txt');
+                const metadata = await extractFileMetadata(file);
+                
+                assertEqual(metadata.name, 'example.txt', 'Should extract filename');
+                assertEqual(metadata.type, 'text/plain', 'Should extract file type');
+                assertEqual(metadata.extension, 'txt', 'Should extract file extension');
+                assertExists(metadata.size, 'Should extract file size');
+                assertExists(metadata.sizeFormatted, 'Should format file size');
+                assertExists(metadata.lastModified, 'Should extract last modified date');
+            });
+
+            testRunner.it('should handle files without extension', async () => {
+                const file = createTestFile('test', 'text/plain', 'README');
+                const metadata = await extractFileMetadata(file);
+                
+                assertEqual(metadata.name, 'README', 'Should handle files without extension');
+                assertEqual(metadata.extension, 'readme', 'Extension should be lowercase filename');
+            });
+
+            testRunner.it('should handle unknown file types', async () => {
+                const file = createTestFile('test', '', 'test.unknown');
+                const metadata = await extractFileMetadata(file);
+                
+                assertEqual(metadata.type, 'Unknown', 'Should handle unknown types');
+                assertEqual(metadata.extension, 'unknown', 'Should extract extension even for unknown types');
+            });
+        });
+
+        testRunner.describe('getImageMetadata', () => {
+            testRunner.it('should extract image dimensions', async () => {
+                const imageFile = await createTestImageFile(200, 150, 'test.png');
+                const imageMetadata = await getImageMetadata(imageFile);
+                
+                assertEqual(imageMetadata.width, 200, 'Should extract correct width');
+                assertEqual(imageMetadata.height, 150, 'Should extract correct height');
+                assertEqual(imageMetadata.aspectRatio, '1.33', 'Should calculate aspect ratio');
+            });
+
+            testRunner.it('should handle square images', async () => {
+                const imageFile = await createTestImageFile(100, 100, 'square.png');
+                const imageMetadata = await getImageMetadata(imageFile);
+                
+                assertEqual(imageMetadata.width, 100, 'Square image width');
+                assertEqual(imageMetadata.height, 100, 'Square image height');
+                assertEqual(imageMetadata.aspectRatio, '1.00', 'Square aspect ratio should be 1.00');
+            });
+        });
+
+        testRunner.describe('extractFileMetadata with images', () => {
+            testRunner.it('should include image metadata for image files', async () => {
+                const imageFile = await createTestImageFile(300, 200, 'photo.png');
+                const metadata = await extractFileMetadata(imageFile);
+                
+                assertExists(metadata.image, 'Should include image metadata');
+                assertEqual(metadata.image.width, 300, 'Should include image width');
+                assertEqual(metadata.image.height, 200, 'Should include image height');
+                assertExists(metadata.image.aspectRatio, 'Should include aspect ratio');
+            });
+
+            testRunner.it('should not include image metadata for non-image files', async () => {
+                const textFile = createTestFile('test', 'text/plain', 'test.txt');
+                const metadata = await extractFileMetadata(textFile);
+                
+                assertTrue(metadata.image === undefined, 'Should not include image metadata for text files');
+            });
+        });
+
+        testRunner.describe('Error handling', () => {
+            testRunner.it('should handle null file input gracefully', async () => {
+                try {
+                    await calculateMultipleSHA(null);
+                    throw new Error('Should have thrown an error for null input');
+                } catch (error) {
+                    assertTrue(error.message.includes('calculateMultipleSHA') || error.message.includes('null'), 'Should throw appropriate error for null input');
+                }
+            });
+
+            testRunner.it('should handle invalid file input gracefully', async () => {
+                try {
+                    await extractFileMetadata({});
+                    throw new Error('Should have thrown an error for invalid input');
+                } catch (error) {
+                    assertTrue(error.message.length > 0, 'Should throw some error for invalid input');
+                }
+            });
+        });
+
+        // Functions to run tests
+        async function runAllTests() {
+            document.getElementById('progressBar').style.width = '0%';
+            await testRunner.runTests();
+        }
+
+        function clearResults() {
+            document.getElementById('testOutput').innerHTML = '';
+            document.getElementById('testResults').style.display = 'none';
+            document.getElementById('progressBar').style.width = '0%';
+        }
+
+        // Auto-run tests when page loads
+        window.addEventListener('load', () => {
+            console.log('Page loaded, test framework ready');
+        });
+    </script>
+</body>
+</html> 

@@ -119,3 +119,14 @@ async function calculateFileSHA(file) {
 //         }
 //     }
 // });
+
+// Export for module usage (Jest testing)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        calculateMultipleSHA,
+        calculateFileSHA,
+        extractFileMetadata,
+        getImageMetadata,
+        formatFileSize
+    };
+}
