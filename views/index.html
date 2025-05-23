@@ -245,6 +245,9 @@
                 <a class="nav-link" href="#featured">Featured</a>
               </li>
               <li class="nav-item">
+                <a class="nav-link" href="#file-sha">File Analysis</a>
+              </li>
+              <li class="nav-item">
                 <a class="nav-link" href="/animations">Animations</a>
               </li>
               <li class="nav-item">
@@ -282,6 +285,126 @@
                   </div>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <section id="file-sha" class="mb-5">
+        <h2 class="text-center mb-4">File Hash Calculator & Metadata Extractor</h2>
+        <div class="row justify-content-center">
+          <div class="col-md-10">
+            <div class="search-card">
+              <div class="d-flex align-items-center mb-3">
+                <i class="fas fa-fingerprint fa-2x text-primary mr-3"></i>
+                <h2 class="mb-0">Multiple SHA Hash Calculator</h2>
+              </div>
+              <p class="lead mb-4">Calculate SHA-1, SHA-256, SHA-384, and SHA-512 hashes of any file securely in your browser.  Your file does not leave your browser.  It's private and secure.</p>
+              
+              <div class="custom-file mb-3">
+                <input type="file" class="custom-file-input" id="shaFileInput" accept="*/*">
+                <label class="custom-file-label" for="shaFileInput">Choose file...</label>
+              </div>
+              
+              <div class="mb-3">
+                <small class="text-muted">Selected file: <span id="selectedFileName" class="font-weight-bold">No file selected</span></small>
+              </div>
+              
+              <button id="calculateShaBtn" class="btn btn-primary btn-lg btn-block" disabled>
+                <i class="fas fa-calculator mr-2"></i>Calculate Hashes & Extract Metadata
+              </button>
+              
+              <div id="shaLoading" class="text-center mt-3" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="sr-only">Processing...</span>
+                </div>
+                <p class="mt-2 text-muted">Calculating hashes and extracting metadata...</p>
+              </div>
+              
+              <div id="shaResult" class="mt-4" style="display: none;">
+                <!-- File Metadata Card -->
+                <div class="card mb-3">
+                  <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                      <i class="fas fa-info-circle mr-2"></i>File Metadata
+                    </h5>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <p><strong>File Name:</strong> <span id="metaFileName"></span></p>
+                        <p><strong>File Size:</strong> <span id="metaFileSize"></span></p>
+                        <p><strong>File Type:</strong> <span id="metaFileType"></span></p>
+                      </div>
+                      <div class="col-md-6">
+                        <p><strong>Extension:</strong> <span id="metaFileExtension"></span></p>
+                        <p><strong>Last Modified:</strong> <span id="metaLastModified"></span></p>
+                        <div id="imageMetadata" style="display: none;">
+                          <p><strong>Dimensions:</strong> <span id="imageDimensions"></span></p>
+                          <p><strong>Aspect Ratio:</strong> <span id="imageAspectRatio"></span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Hash Results Card -->
+                <div class="card">
+                  <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                      <i class="fas fa-check-circle mr-2"></i>Hash Values
+                    </h5>
+                  </div>
+                  <div class="card-body">
+                    <div class="hash-result mb-3">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>SHA-1:</strong>
+                        <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard('sha1Value', this)">
+                          <i class="fas fa-copy"></i> Copy
+                        </button>
+                      </div>
+                      <code id="sha1Value" class="text-break d-block p-2 bg-light border rounded"></code>
+                    </div>
+                    
+                    <div class="hash-result mb-3">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>SHA-256:</strong>
+                        <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard('sha256Value', this)">
+                          <i class="fas fa-copy"></i> Copy
+                        </button>
+                      </div>
+                      <code id="sha256Value" class="text-break d-block p-2 bg-light border rounded"></code>
+                    </div>
+                    
+                    <div class="hash-result mb-3">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>SHA-384:</strong>
+                        <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard('sha384Value', this)">
+                          <i class="fas fa-copy"></i> Copy
+                        </button>
+                      </div>
+                      <code id="sha384Value" class="text-break d-block p-2 bg-light border rounded"></code>
+                    </div>
+                    
+                    <div class="hash-result mb-3">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>SHA-512:</strong>
+                        <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard('sha512Value', this)">
+                          <i class="fas fa-copy"></i> Copy
+                        </button>
+                      </div>
+                      <code id="sha512Value" class="text-break d-block p-2 bg-light border rounded"></code>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mt-3">
+                <small class="text-muted">
+                  <i class="fas fa-shield-alt mr-1"></i>
+                  Your file is processed entirely in your browser. No data is sent to our servers.
+                </small>
+              </div>
             </div>
           </div>
         </div>
@@ -332,20 +455,20 @@
           </div>
           <div class="col-md-3 mb-4">
             <div class="product-card">
-              <div class="product-img" style="background-image: url('https://source.unsplash.com/random/800x600/?translator')">
+              <div class="product-img" style="background-image: url('https://source.unsplash.com/random/800x600/?security')">
                 <div class="product-icon">
-                  <i class="fas fa-language"></i>
+                  <i class="fas fa-fingerprint"></i>
                 </div>
-                <div class="product-badge">Coming Soon</div>
+                <div class="product-badge">Active</div>
               </div>
               <div class="product-body">
                 <h3 class="product-title">
-                  <i class="icon fas fa-globe-americas"></i>
-                  Language Translator
+                  <i class="icon fas fa-shield-alt"></i>
+                  File Analysis Tool
                 </h3>
-                <p class="product-description">Translate text between multiple languages with advanced AI capabilities.</p>
-                <a href="#" class="btn btn-feature">
-                  <i class="fas fa-clock mr-2"></i>Coming Soon
+                <p class="product-description">Calculate multiple SHA hashes (SHA-1, SHA-256, SHA-384, SHA-512) and extract metadata from any file securely in your browser.</p>
+                <a href="#file-sha" class="btn btn-feature">
+                  <i class="fas fa-play-circle mr-2"></i>Try Now
                 </a>
               </div>
             </div>
@@ -399,5 +522,98 @@
     
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
+    <script src="/javascript/file-sha.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('shaFileInput');
+        const calculateBtn = document.getElementById('calculateShaBtn');
+        const resultDiv = document.getElementById('shaResult');
+        const loadingDiv = document.getElementById('shaLoading');
+        const fileName = document.getElementById('selectedFileName');
+
+        fileInput.addEventListener('change', function() {
+          const file = this.files[0];
+          if (file) {
+            fileName.textContent = file.name;
+            calculateBtn.disabled = false;
+            resultDiv.style.display = 'none';
+          } else {
+            fileName.textContent = 'No file selected';
+            calculateBtn.disabled = true;
+            resultDiv.style.display = 'none';
+          }
+        });
+
+        calculateBtn.addEventListener('click', async function() {
+          const file = fileInput.files[0];
+          if (!file) return;
+
+          calculateBtn.disabled = true;
+          loadingDiv.style.display = 'block';
+          resultDiv.style.display = 'none';
+
+          try {
+            // Calculate multiple hashes and extract metadata
+            const [hashes, metadata] = await Promise.all([
+              calculateMultipleSHA(file),
+              extractFileMetadata(file)
+            ]);
+            
+            // Populate hash values
+            document.getElementById('sha1Value').textContent = hashes['SHA-1'];
+            document.getElementById('sha256Value').textContent = hashes['SHA-256'];
+            document.getElementById('sha384Value').textContent = hashes['SHA-384'];
+            document.getElementById('sha512Value').textContent = hashes['SHA-512'];
+            
+            // Populate metadata
+            document.getElementById('metaFileName').textContent = metadata.name;
+            document.getElementById('metaFileSize').textContent = metadata.sizeFormatted;
+            document.getElementById('metaFileType').textContent = metadata.type;
+            document.getElementById('metaFileExtension').textContent = metadata.extension;
+            document.getElementById('metaLastModified').textContent = metadata.lastModified.toLocaleString();
+            
+            // Show image metadata if available
+            const imageMetadataDiv = document.getElementById('imageMetadata');
+            if (metadata.image) {
+              document.getElementById('imageDimensions').textContent = `${metadata.image.width} × ${metadata.image.height} pixels`;
+              document.getElementById('imageAspectRatio').textContent = metadata.image.aspectRatio;
+              imageMetadataDiv.style.display = 'block';
+            } else {
+              imageMetadataDiv.style.display = 'none';
+            }
+            
+            resultDiv.style.display = 'block';
+          } catch (error) {
+            alert('Error processing file: ' + error.message);
+          } finally {
+            loadingDiv.style.display = 'none';
+            calculateBtn.disabled = false;
+          }
+        });
+      });
+      
+      // Function to copy text to clipboard
+      function copyToClipboard(elementId, button) {
+        const element = document.getElementById(elementId);
+        const text = element.textContent;
+        
+        navigator.clipboard.writeText(text).then(function() {
+          // Show temporary feedback
+          const originalHTML = button.innerHTML;
+          button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+          button.classList.remove('btn-outline-primary');
+          button.classList.add('btn-success');
+          
+          setTimeout(function() {
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-primary');
+          }, 2000);
+        }).catch(function(err) {
+          console.error('Failed to copy text: ', err);
+          alert('Failed to copy to clipboard');
+        });
+      }
+    </script>
   </body>
 </html>
