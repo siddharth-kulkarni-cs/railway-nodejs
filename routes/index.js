@@ -3,6 +3,8 @@ const path = require('path');
 const router = express.Router();
 const { contentstackRedirectFragment, dynamicWordFragement, inputTextFragment } = require('../services/html-fragments');
 const { generateContent } = require('../services/gen-ai');
+const { getCompletionForWrongWord } = require('../services/groq-ai-client');
+
 const api_key = process.env.GEMINI_API_KEY;
 // Add a simple in-memory cache
 const wordCache = new Map();
@@ -105,17 +107,28 @@ if(word.toLowerCase() === 'contentstack') {
         cleanupCache();
       }
     }
-
+    let html = dynamicWordFragement(word);
     if (!data || data.length === 0 || !data[0] || !data[0].meanings || !data[0].meanings[0] || !data[0].meanings[0].definitions || !data[0].meanings[0].definitions[0]) {
       console.log('No data found');
-      res.sendFile(path.join(__dirname, '../views/404.html'));
-      return;
+      const completion = await getCompletionForWrongWord(word);
+      html += `
+        <div class="gen-ai-section" style="margin-top: 2rem; background-color: var(--light-bg); border-radius: 8px; box-shadow: var(--shadow); padding: 1.5rem; border-left: 4px solid var(--accent-color);">
+          <h3 class="gen-ai-response-title" style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.4rem;">${word} may not be spelled correctly, or is not an English word</h3>
+          <div class="gen-ai-response-content" style="line-height: 1.7; color: var(--text-color);">${completion.choices[0]?.message?.content || ""}</div>
+        </div>
+      `;
+      html += `
+        </div>
+        <a href="/" class="back-link">Back to Home</a>
+      </body>
+      </html>
+      `;
+      res.send(html);
+      return
     }
 
-    console.log('Data:', data[0].meanings[0].definitions[0].definition);
-
     // Create HTML response
-    let html = dynamicWordFragement(word);
+    
 
     // Add this before the closing </div> tag and the back link
     html += inputTextFragment();
