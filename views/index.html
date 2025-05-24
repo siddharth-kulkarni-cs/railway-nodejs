@@ -299,7 +299,7 @@
                 <i class="fas fa-fingerprint fa-2x text-primary mr-3"></i>
                 <h2 class="mb-0">Professional File Forensics Tool</h2>
               </div>
-              <p class="lead mb-4">Professional-grade file analysis with forensic capabilities: SHA hashes, hex viewer, entropy visualization, string extraction, file carving, steganography detection, and more. All processing happens in your browser for maximum privacy and security.</p>
+              <p class="lead mb-4">Professional-grade file analysis with forensic capabilities: SHA hashes, hex viewer, entropy visualization, string extraction, advanced file carving & embedded object extraction, polyglot detection, steganography analysis, and more. All processing happens in your browser for maximum privacy and security.</p>
               
               <div class="custom-file mb-3">
                 <input type="file" class="custom-file-input" id="shaFileInput" accept="*/*">
@@ -314,6 +314,10 @@
               
               <button id="calculateShaBtn" class="btn btn-primary btn-lg btn-block" disabled>
                 <i class="fas fa-microscope mr-2"></i>Perform Advanced Forensic Analysis
+              </button>
+              
+              <button id="fileCarvingBtn" class="btn btn-danger btn-lg btn-block mt-2" disabled>
+                <i class="fas fa-search-plus mr-2"></i>Advanced File Carving & Embedded Object Extraction
               </button>
               
               <div id="shaLoading" class="text-center mt-3" style="display: none;">
@@ -526,6 +530,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
     <script src="/javascript/file-sha-enhanced.js"></script>
     <script src="/javascript/advanced-analysis.js"></script>
+    <script src="/javascript/file-carving-engine.js"></script>
+    <script src="/javascript/file-carving-ui.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         const fileInput = document.getElementById('shaFileInput');
@@ -534,6 +540,7 @@
         const loadingDiv = document.getElementById('shaLoading');
         const fileName = document.getElementById('selectedFileName');
         const advancedAnalyzer = new AdvancedFileAnalyzer();
+        const fileCarvingEngine = new AdvancedFileCarvingEngine();
 
         fileInput.addEventListener('change', function() {
           const file = this.files[0];
@@ -545,6 +552,7 @@
               fileName.textContent = `❌ File too large: ${formatFileSize(file.size)} (max 100 MB)`;
               fileName.style.color = '#dc3545'; // Red color
               calculateBtn.disabled = true;
+              document.getElementById('fileCarvingBtn').disabled = true;
               resultDiv.style.display = 'none';
               
               // Show alert with file size info
@@ -559,11 +567,13 @@
             fileName.textContent = file.name;
             fileName.style.color = ''; // Reset color
             calculateBtn.disabled = false;
+            document.getElementById('fileCarvingBtn').disabled = false;
             resultDiv.style.display = 'none';
           } else {
             fileName.textContent = 'No file selected';
             fileName.style.color = ''; // Reset color
             calculateBtn.disabled = true;
+            document.getElementById('fileCarvingBtn').disabled = true;
             resultDiv.style.display = 'none';
           }
         });
@@ -619,6 +629,49 @@
           } finally {
             loadingDiv.style.display = 'none';
             calculateBtn.disabled = false;
+          }
+        });
+        
+        // File Carving Button Event Listener
+        document.getElementById('fileCarvingBtn').addEventListener('click', async function() {
+          const file = fileInput.files[0];
+          if (!file) return;
+
+          this.disabled = true;
+          calculateBtn.disabled = true;
+          loadingDiv.style.display = 'block';
+          resultDiv.style.display = 'none';
+
+          try {
+            // Update loading message for file carving
+            loadingDiv.querySelector('p').textContent = 'Performing advanced file carving and embedded object extraction...';
+            
+            // Perform file carving analysis
+            const carvingResults = await fileCarvingEngine.analyzeFile(file);
+            
+            // Create a new container for carving results
+            let carvingContainer = document.getElementById('fileCarvingResults');
+            if (!carvingContainer) {
+              carvingContainer = document.createElement('div');
+              carvingContainer.id = 'fileCarvingResults';
+              resultDiv.parentNode.insertBefore(carvingContainer, resultDiv.nextSibling);
+            }
+            
+            // Render the carving results using the UI component
+            fileCarvingUI.renderCarvingResults(carvingResults, carvingContainer);
+            
+            // Show the results
+            carvingContainer.style.display = 'block';
+            
+          } catch (error) {
+            alert('File carving failed: ' + error.message);
+            console.error('File carving error:', error);
+          } finally {
+            loadingDiv.style.display = 'none';
+            this.disabled = false;
+            calculateBtn.disabled = false;
+            // Reset loading message
+            loadingDiv.querySelector('p').textContent = 'Performing forensic analysis and extracting metadata...';
           }
         });
         

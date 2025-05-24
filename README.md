@@ -1,1 +1,1 @@
-A minimal Node JS app with random features to deploy to railway.
+A minimal Node JS app with random features to deploy to Contentstack Launch.
