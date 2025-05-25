@@ -102,3 +102,13 @@ dist
 
 # TernJS port file
 .tern-port
+
+# TypeScript
+dist/
+*.tsbuildinfo
+*.d.ts
+*.d.ts.map
+
+# IDE
+.vscode/
+.idea/

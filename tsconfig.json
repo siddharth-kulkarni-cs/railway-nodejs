@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    // Target modern JavaScript
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    
+    // Enable JSX support for .tsx files
+    "jsx": "preserve",
+    
+    // Output directory for compiled files
+    "outDir": "./dist",
+    "rootDir": "./",
+    
+    // Type checking options
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    // Allow JavaScript files
+    "allowJs": true,
+    "checkJs": false,
+    
+    // Source map for debugging
+    "sourceMap": true,
+    
+    // Additional options
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    
+    // Node types
+    "types": ["node", "jest"]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage"
+  ]
+} 

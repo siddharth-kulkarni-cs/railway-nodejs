@@ -4,11 +4,13 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
+    "start": "tsx app.js",
+    "dev": "tsx watch app.js",
+    "build": "tsc",
+    "build:clean": "rm -rf dist && tsc",
     "test": "jest",
-    "test:all": "jest --testPathPattern=tests/.*\\.test\\.js --forceExit",
-    "build": "npm install"
+    "test:all": "jest --testPathPattern=tests/.*\\.test\\.(js|ts|tsx) --forceExit",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -18,9 +20,13 @@
     "groq-sdk": "^0.22.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.15.21",
     "jest": "^29.7.0",
     "jsdom": "^22.1.0",
-    "nodemon": "^3.0.2",
-    "supertest": "^6.3.3"
+    "nodemon": "^3.1.10",
+    "supertest": "^6.3.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
   }
 }
