@@ -1,6 +1,5 @@
 # Contentstack Dictionary - Railway Node.js App
 
-A Node.js application with TypeScript support.
 
 ## Features
 
