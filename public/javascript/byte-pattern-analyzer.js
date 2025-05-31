@@ -57,7 +57,8 @@ function calculateNGrams(uint8Array, n, topM = 50) {
 }
 
 /**
- * Displays the byte frequency data as a bar chart on an HTML Canvas.
+ * Displays the byte frequency data as a bar chart on an HTML Canvas,
+ * with color-coding for different byte types.
  * @param {number[]} frequencyData - Array of 256 numbers representing byte frequencies.
  * @param {string} canvasId - The ID of the canvas element to draw on.
  */
@@ -72,7 +73,13 @@ function displayByteFrequencyChart(frequencyData, canvasId) {
     const chartHeight = canvas.height;
     const barWidth = chartWidth / 256; // Width of each bar
 
-    // Find max frequency for scaling
+    // Define colors for byte ranges
+    const colors = {
+        control: "rgba(253, 126, 20, 0.7)",    // Orange (e.g., Bootstrap warning)
+        printableAscii: "rgba(40, 167, 69, 0.7)", // Green (e.g., Bootstrap success)
+        extendedBinary: "rgba(0, 123, 255, 0.7)"  // Blue (e.g., Bootstrap primary)
+    };
+
     let maxFreq = 0;
     for (let i = 0; i < frequencyData.length; i++) {
         if (frequencyData[i] > maxFreq) {
@@ -80,34 +87,42 @@ function displayByteFrequencyChart(frequencyData, canvasId) {
         }
     }
 
-    if (maxFreq === 0) { // Handle empty or all-zero data
-        ctx.clearRect(0, 0, chartWidth, chartHeight);
-        ctx.fillStyle = "#6c757d"; // Muted text color
+    ctx.clearRect(0, 0, chartWidth, chartHeight);
+
+    if (maxFreq === 0) {
+        ctx.fillStyle = "#6c757d";
         ctx.textAlign = "center";
+        ctx.font = "12px Arial";
         ctx.fillText("No data to display or all byte frequencies are zero.", chartWidth / 2, chartHeight / 2);
         return;
     }
 
-    // Clear canvas
-    ctx.clearRect(0, 0, chartWidth, chartHeight);
-
-    // Draw bars
     for (let i = 0; i < 256; i++) {
         const barHeight = (frequencyData[i] / maxFreq) * chartHeight;
         const x = i * barWidth;
         const y = chartHeight - barHeight;
 
-        // Simple blue bars
-        ctx.fillStyle = "rgba(0, 123, 255, 0.7)";
+        // Determine color based on byte value i
+        if ((i >= 0 && i <= 31) || i === 127) { // Control characters
+            ctx.fillStyle = colors.control;
+        } else if (i >= 32 && i <= 126) { // Printable ASCII
+            ctx.fillStyle = colors.printableAscii;
+        } else { // Extended ASCII / Binary data (128-255)
+            ctx.fillStyle = colors.extendedBinary;
+        }
+
         ctx.fillRect(x, y, barWidth, barHeight);
     }
 
-    // Optional: Add simple X-axis labels (0, 128, 255) for context
-    ctx.fillStyle = "#333";
+    // Simple X-axis labels (0, 127/128, 255) for context
+    ctx.fillStyle = "#333"; // Dark color for text
     ctx.textAlign = "center";
+    ctx.font = "10px Arial";
     ctx.fillText("0", barWidth / 2, chartHeight - 5);
     ctx.fillText("127", 127 * barWidth + barWidth / 2, chartHeight - 5);
-    ctx.fillText("255", 255 * barWidth + barWidth / 2, chartHeight - 5);
+    // To avoid overlap, adjust position of 128 if needed, or just mark ranges by color.
+    // The legend already serves this purpose. Let'''s keep it simple.
+    ctx.fillText("255", 255 * barWidth + barWidth / 2, chartHeight -5);
 }
 
 /**
@@ -173,28 +188,46 @@ function displayNGramTable(ngramData, tableContainerId) {
     container.appendChild(table);
 }
 
-// Export functions if using modules (e.g., in a Node.js environment or with bundlers)
-// For direct script inclusion in the browser, they become global or can be namespaced.
+/**
+ * Calculates the Shannon entropy of the data based on byte frequencies.
+ * @param {number[]} frequencyData - Array of 256 numbers representing byte frequencies.
+ * @param {number} totalBytes - The total number of bytes from which frequencies were derived.
+ * @returns {number} The Shannon entropy value in bits per byte. Returns 0 if totalBytes is 0.
+ */
+function calculateShannonEntropy(frequencyData, totalBytes) {
+    if (totalBytes === 0) {
+        return 0;
+    }
+
+    let entropy = 0;
+    for (let i = 0; i < frequencyData.length; i++) {
+        if (frequencyData[i] > 0) {
+            const probability = frequencyData[i] / totalBytes;
+            entropy -= probability * Math.log2(probability);
+        }
+    }
+    return entropy;
+}
+
+// Export functions for browser global scope
+if (typeof window !== "undefined") {
+    window.BytePatternAnalyzerLogic = {
+        calculateByteFrequencies,
+        calculateNGrams,
+        bytesToHexString,
+        displayByteFrequencyChart,
+        displayNGramTable,
+        calculateShannonEntropy
+    };
+}
+// Export for Node.js/module environments
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
         calculateByteFrequencies,
         calculateNGrams,
         bytesToHexString,
         displayByteFrequencyChart,
-        displayNGramTable
-    };
-} else {
-    // Make them available on a global object for browser if not using modules
-    window.BytePatternAnalyzerLogic = {
-        ...(window.BytePatternAnalyzerLogic || {}), // Preserve existing functions if any
-        // The core logic functions are already added in the previous script version
-        // We only need to add the new display functions here,
-        // but the prompt's export block re-adds them.
-        // For safety and to match the prompt's intention, ensure all are listed.
-        calculateByteFrequencies, // from original
-        calculateNGrams,          // from original
-        bytesToHexString,         // from original
-        displayByteFrequencyChart,
-        displayNGramTable
+        displayNGramTable,
+        calculateShannonEntropy
     };
 }

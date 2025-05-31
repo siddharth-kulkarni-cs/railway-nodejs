@@ -490,11 +490,23 @@
                   </h5>
                 </div>
                 <div class="card-body">
+                  <!-- Shannon Entropy Display -->
+                  <div class="mb-3">
+                    <h6>Shannon Entropy</h6>
+                    <p id="entropyDisplay" class="lead" style="font-size: 1.1rem;">Not yet calculated.</p>
+                    <small id="entropyInterpretation" class="text-muted">Measures the randomness/uncertainty of data. Ranges from 0 (no uncertainty) to 8.0 (maximum uncertainty for byte data). High values often indicate compressed or encrypted data. Low values suggest redundancy, like plain text or structured binary data.</small>
+                  </div>
+                  <hr>
                   <!-- Byte Frequency Chart -->
                   <div class="mb-3">
                     <h6>Byte Frequency Distribution (0-255)</h6>
+                    <div class="mb-1 d-flex justify-content-around flex-wrap">
+                        <small><span style="color: #28a745;">■</span> Printable ASCII (0x20-0x7E)</small>
+                        <small><span style="color: #fd7e14;">■</span> Control Chars (0x00-0x1F, 0x7F)</small>
+                        <small><span style="color: #007bff;">■</span> Extended/Binary (0x80-0xFF)</small>
+                    </div>
                     <canvas id="byteFrequencyChartCanvas" width="400" height="200"></canvas>
-                    <small class="text-muted">Shows frequency of each byte value. Helps identify data patterns, compression, or encryption.</small>
+                    <small class="text-muted">Shows frequency of each byte value. Colors indicate byte type (see legend). Helps identify data patterns, compression, or encryption.</small>
                   </div>
                   <hr>
                   <!-- N-gram Analysis -->
@@ -514,7 +526,7 @@
                     <div id="ngramResultsTableContainer" style="max-height: 300px; overflow-y: auto;">
                       <!-- N-gram table will be rendered here by JavaScript -->
                     </div>
-                    <small class="text-muted">Shows most common sequences of N bytes. Useful for finding patterns or repeated data structures.</small>
+                    <small class="text-muted">Shows the most frequent sequences of N bytes (N-grams). This can help identify file type signatures (magic numbers), repeated data structures, common opcodes in executables, or typical patterns in text or structured binary data.</small>
                   </div>
                 </div>
               </div>
@@ -772,6 +784,15 @@
                 // Calculate and display byte frequencies
                 const frequencies = window.BytePatternAnalyzerLogic.calculateByteFrequencies(currentFileUint8Array);
                 window.BytePatternAnalyzerLogic.displayByteFrequencyChart(frequencies, 'byteFrequencyChartCanvas');
+
+                // Calculate and display Shannon Entropy
+                const totalBytesForEntropy = currentFileUint8Array.length;
+                const entropy = window.BytePatternAnalyzerLogic.calculateShannonEntropy(frequencies, totalBytesForEntropy);
+                const entropyDisplayEl = document.getElementById('entropyDisplay');
+                if (entropyDisplayEl) {
+                    entropyDisplayEl.textContent = `Entropy: ${entropy.toFixed(3)} bits/byte`;
+                }
+                // The interpretation text is static HTML, so no need to update it here unless dynamic levels are needed.
 
                 // Calculate and display N-grams for default N
                 const defaultNgramN = parseInt(document.getElementById('ngramNValue').value, 10) || 2;
