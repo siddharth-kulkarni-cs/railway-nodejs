@@ -294,6 +294,43 @@
         color: var(--dark-text);
         border: 1px solid var(--border-color);
       }
+      
+      /* Visual File Map Styles */
+      #visualMapCanvas {
+        position: relative;
+        min-height: 600px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      
+      [data-theme="dark"] #visualMapCanvas {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      }
+      
+      #visualMapCanvas canvas {
+        display: block;
+        margin: 0 auto;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      
+      .visual-map-controls {
+        margin-top: 1rem;
+        padding: 1rem;
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        box-shadow: 0 2px 6px var(--shadow-color);
+      }
+      
+      #vmNodeDetails {
+        animation: fadeIn 0.3s ease-in-out;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
     </style>
   </head>
   <body>
@@ -396,6 +433,10 @@
               
               <button id="fileCarvingBtn" class="btn btn-danger btn-lg btn-block mt-2" disabled>
                 <i class="fas fa-search-plus mr-2"></i>Advanced File Carving & Embedded Object Extraction
+              </button>
+              
+              <button id="visualFileMapBtn" class="btn btn-warning btn-lg btn-block mt-2" disabled>
+                <i class="fas fa-project-diagram mr-2"></i>Interactive Visual File Structure Map (NEW!)
               </button>
               
               <div id="shaLoading" class="text-center mt-3" style="display: none;">
@@ -660,6 +701,7 @@
     <script src="/javascript/file-carving-engine.js"></script>
     <script src="/javascript/file-carving-ui.js"></script>
     <script src="/javascript/byte-pattern-analyzer.js"></script>
+    <script src="/javascript/visual-file-map.js"></script>
     <script>
       // Theme toggle functionality
       const themeToggle = document.getElementById('themeToggle');
@@ -707,6 +749,7 @@
               fileName.style.color = '#dc3545'; // Red color
               calculateBtn.disabled = true;
               document.getElementById('fileCarvingBtn').disabled = true;
+              document.getElementById('visualFileMapBtn').disabled = true;
               resultDiv.style.display = 'none';
               document.getElementById('bytePatternAnalysisCard').style.display = 'none'; // Hide card on error
               
@@ -721,6 +764,7 @@
             fileName.style.color = '';
             calculateBtn.disabled = false;
             document.getElementById('fileCarvingBtn').disabled = false;
+            document.getElementById('visualFileMapBtn').disabled = false;
             resultDiv.style.display = 'none';
             document.getElementById('bytePatternAnalysisCard').style.display = 'none'; // Hide until analysis
             currentFileUint8Array = null; // Reset on new file selection
@@ -729,6 +773,7 @@
             fileName.style.color = '';
             calculateBtn.disabled = true;
             document.getElementById('fileCarvingBtn').disabled = true;
+            document.getElementById('visualFileMapBtn').disabled = true;
             resultDiv.style.display = 'none';
             document.getElementById('bytePatternAnalysisCard').style.display = 'none'; // Hide card
             currentFileUint8Array = null; // Reset
@@ -864,6 +909,69 @@
             loadingDiv.style.display = 'none';
             this.disabled = false;
             calculateBtn.disabled = false;
+            loadingDiv.querySelector('p').textContent = 'Performing forensic analysis and extracting metadata...';
+          }
+        });
+
+        // Visual File Map Button Event Listener
+        document.getElementById('visualFileMapBtn').addEventListener('click', async function() {
+          const file = fileInput.files[0];
+          if (!file) return;
+
+          this.disabled = true;
+          calculateBtn.disabled = true;
+          document.getElementById('fileCarvingBtn').disabled = true;
+          loadingDiv.style.display = 'block';
+          resultDiv.style.display = 'none';
+
+          try {
+            loadingDiv.querySelector('p').textContent = 'Creating interactive visual file structure map...';
+            
+            const visualMap = new VisualFileMap();
+            const structure = await visualMap.analyzeFileStructure(file);
+            
+            // Create or update visualization container
+            let visualContainer = document.getElementById('visualFileMapContainer');
+            if (!visualContainer) {
+              visualContainer = document.createElement('div');
+              visualContainer.id = 'visualFileMapContainer';
+              visualContainer.className = 'mt-4';
+              visualContainer.innerHTML = `
+                <div class="card">
+                  <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                      <i class="fas fa-project-diagram mr-2"></i>Interactive Visual File Structure Map
+                    </h5>
+                  </div>
+                  <div class="card-body" id="visualMapCanvas">
+                    <!-- Canvas will be inserted here -->
+                  </div>
+                </div>
+              `;
+              resultDiv.parentNode.insertBefore(visualContainer, resultDiv.nextSibling);
+            }
+            
+            // Create visualization
+            const canvasContainer = document.getElementById('visualMapCanvas');
+            visualMap.createVisualization(structure, canvasContainer);
+            
+            visualContainer.style.display = 'block';
+            
+            // Show example of the space-to-newline function
+            const exampleText = "This is a test string with spaces";
+            const convertedText = visualMap.replaceSpacesWithNewlines(exampleText);
+            console.log("Space to newline conversion example:");
+            console.log("Original:", exampleText);
+            console.log("Converted:", convertedText);
+            
+          } catch (error) {
+            alert('Visual file map creation failed: ' + error.message);
+            console.error('Visual file map error:', error);
+          } finally {
+            loadingDiv.style.display = 'none';
+            this.disabled = false;
+            calculateBtn.disabled = false;
+            document.getElementById('fileCarvingBtn').disabled = false;
             loadingDiv.querySelector('p').textContent = 'Performing forensic analysis and extracting metadata...';
           }
         });
