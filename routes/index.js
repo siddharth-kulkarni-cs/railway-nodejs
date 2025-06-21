@@ -215,7 +215,9 @@ router.get('/joke', async (req, res) => {
       res.status(500).send('Failed to get joke from Groq');
       return;
     }
-    const jokeText = joke.choices[0]?.message?.content;
+    let jokeText = joke.choices[0]?.message?.content;
+    // if joke contains the tag <think> then remove all contents between <think> and </think>
+    jokeText = jokeText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     console.log(jokeText);
     res.send(jokeText);
   } else {

@@ -55,7 +55,15 @@ async function generateJoke(apiKey, word) {
     console.log('Cache miss for word for GenAI:', word);
 
     try {
-        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey, {
+        const random = Math.random();
+        let model = "gemini-2.5-flash";
+        if(random < 0.5){
+            model = "gemini-2.0-flash"
+        }
+
+        console.log('Using Gemini model:', model);
+
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key=' + apiKey, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

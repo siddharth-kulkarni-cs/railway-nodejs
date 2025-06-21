@@ -61,18 +61,24 @@ async function getJokeFromGroq(topic) {
         return jokeCache.get(topic);
     }
     console.log('Cache miss for joke for Groq:', topic);
+    let model = "llama-3.3-70b-versatile";
+    const random = Math.random();
+    if(random < 0.5){
+        model = "deepseek-r1-distill-llama-70b"
+    }
+    console.log('Using Groq model:', model);
     const response = await groq.chat.completions.create({
         messages: [
             {
                 "role": "system",
-                "content": "You are a comedian.  You will be given a topic and you will need to tell a joke about it.  Remove any words that indicate that you are an AI model.  Just give an answer."
+                "content": "You are a comedian.  You will be given a topic and you will need to tell a joke about it.  Remove any words that indicate that you are an AI model.  Just give an answer.  Remove any thinking or reasoning.  Just give an answer."
             },
             {
                 role: "user",
                 content: topic,
             },
         ],
-        model: "llama-3.3-70b-versatile",
+        model: model,
     });
     jokeCache.set(topic, response);
     return response;
