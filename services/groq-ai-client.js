@@ -2,15 +2,26 @@ const Groq = require("groq-sdk");
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+
+// implement a cache
+const wordCache = new Map();
+const jokeCache = new Map();
+
 async function main() {
-    const chatCompletion = await getCompletionForWrongWord("drakonion");
+    const chatCompletion = await getJokeFromGroq();
     // Print the completion returned by the LLM.
+    console.log(chatCompletion);
     console.log(chatCompletion.choices[0]?.message?.content || "");
 }
 
 
 async function getCompletionForWrongWord(word) {
-    return groq.chat.completions.create({
+    if(wordCache.has(word)){
+        console.log('Cache hit for word for Groq:', word);
+        return wordCache.get(word);
+    }
+    console.log('Cache miss for word for Groq:', word);
+    const response = await groq.chat.completions.create({
         messages: [
             {
                 "role": "system",
@@ -23,6 +34,8 @@ async function getCompletionForWrongWord(word) {
         ],
         model: "llama-3.3-70b-versatile",
     });
+    wordCache.set(word, response);
+    return response;
 }
 
 async function getGroqChatCompletion() {
@@ -41,6 +54,34 @@ async function getGroqChatCompletion() {
     });
 }
 
-module.exports = {
-    getCompletionForWrongWord
+
+async function getJokeFromGroq(topic) {
+    if(jokeCache.has(topic)){
+        console.log('Cache hit for joke for Groq:', topic);
+        return jokeCache.get(topic);
+    }
+    console.log('Cache miss for joke for Groq:', topic);
+    const response = await groq.chat.completions.create({
+        messages: [
+            {
+                "role": "system",
+                "content": "You are a comedian.  You will be given a topic and you will need to tell a joke about it.  Remove any words that indicate that you are an AI model.  Just give an answer."
+            },
+            {
+                role: "user",
+                content: topic,
+            },
+        ],
+        model: "llama-3.3-70b-versatile",
+    });
+    jokeCache.set(topic, response);
+    return response;
 }
+
+
+
+module.exports = {
+    getCompletionForWrongWord,
+    getJokeFromGroq
+}
+// main();

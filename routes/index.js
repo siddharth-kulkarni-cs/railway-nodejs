@@ -2,8 +2,8 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 const { contentstackRedirectFragment, dynamicWordFragement, inputTextFragment } = require('../services/html-fragments');
-const { generateContent } = require('../services/gen-ai');
-const { getCompletionForWrongWord } = require('../services/groq-ai-client');
+const { generateContent, generateJoke } = require('../services/gen-ai');
+const { getCompletionForWrongWord, getJokeFromGroq } = require('../services/groq-ai-client');
 
 const api_key = process.env.GEMINI_API_KEY;
 // Add a simple in-memory cache
@@ -196,6 +196,40 @@ if(word.toLowerCase() === 'contentstack') {
         </html>
       `);
   }
+});
+
+
+router.get('/joke', async (req, res) => {
+  // get the topic from the query params
+  const topic = req.query.topic;
+  if (!topic || topic.trim().length === 0) {
+    res.status(400).send('Topic is required');
+    return;
+  }
+  // randomly call gemini or groq api
+  const random = Math.random();
+  if (random < 0.5) {
+    console.log('Using Groq API for joke');
+    const joke = await getJokeFromGroq(topic);
+    if(!joke){
+      res.status(500).send('Failed to get joke from Groq');
+      return;
+    }
+    const jokeText = joke.choices[0]?.message?.content;
+    console.log(jokeText);
+    res.send(jokeText);
+  } else {
+    console.log('Using Gemini API for joke');
+    const joke = await generateJoke(api_key, topic);
+    // console.log('joke', joke);
+    if(!joke){
+      res.status(500).send('Failed to get joke from Gemini');
+      return;
+    }
+    const jokeText = joke.candidates[0].content.parts[0].text;
+    res.send(jokeText);
+  }
+  
 });
 
 module.exports = router;
