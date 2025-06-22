@@ -751,7 +751,7 @@
                   Joke Generator
                 </h3>
                 <p class="product-description">Get AI-powered jokes on any topic. Powered by advanced language models for hilarious results.</p>
-                <a href="#joke-generator" class="btn btn-feature">
+                <a href="#joke-generator" class="btn btn-feature" data-track="Feature Button Clicked" data-track-feature="joke-generator">
                   <i class="fas fa-play-circle mr-2"></i>Try Now
                 </a>
               </div>
@@ -784,6 +784,11 @@
       </div>
     </footer>
     
+    <!-- Mixpanel Analytics -->
+    <script type="text/javascript">
+    (function(f,b){if(!b.__SV){var e,g,i,h;window.mixpanel=b;b._i=[];b.init=function(e,f,c){function g(a,d){var b=d.split(".");2==b.length&&(a=a[b[0]],d=b[1]);a[d]=function(){a.push([d].concat(Array.prototype.slice.call(arguments,0)))}}var a=b;for(void 0!==c?a=b[c]=[]:c="mixpanel",a.people=a.people||[],a.toString=function(a){var d="mixpanel";"mixpanel"!==c&&(d+="."+c);a||(d+=" (stub)");return d},a.people.toString=function(){return a.toString(1)+".people (stub)"},i="disable time_event track track_pageview track_links track_forms track_with_groups add_group set_group remove_group register register_once alias unregister identify name_tag set_config reset opt_in_tracking opt_out_tracking has_opted_in_tracking has_opted_out_tracking clear_opt_in_out_tracking start_batch_senders people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user people.remove".split(" "),h=0;h<i.length;h++)g(a,i[h]);var j="set set_once union unset remove delete".split(" ");a.get_group=function(){function b(c){d[c]=function(){call2_args=arguments;call2=[c].concat(Array.prototype.slice.call(call2_args,0));a.push([e,call2])}}for(var d={},e=["get_group"].concat(Array.prototype.slice.call(arguments,0)),c=0;c<j.length;c++)b(j[c]);return d};b._i.push([e,f,c])};b.__SV=1.2;e=f.createElement("script");e.type="text/javascript";e.async=!0;e.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===f.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";g=f.getElementsByTagName("script")[0];g.parentNode.insertBefore(e,g)}})(document,window.mixpanel||[]);
+    </script>
+    
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
     <script src="/javascript/file-sha-enhanced.js"></script>
@@ -792,6 +797,15 @@
     <script src="/javascript/file-carving-ui.js"></script>
     <script src="/javascript/byte-pattern-analyzer.js"></script>
     <script src="/javascript/visual-file-map.js"></script>
+    
+    <!-- Mixpanel Configuration -->
+    <script>
+      // You can override these values by setting them before loading mixpanel-config.js
+      window.MIXPANEL_TOKEN = 'YOUR_MIXPANEL_TOKEN_HERE'; // Replace with your actual token
+      window.MIXPANEL_ENABLED = true; // Set to false to disable tracking
+    </script>
+    <script src="/javascript/mixpanel-config.js"></script>
+    
     <script>
       // Theme toggle functionality
       const themeToggle = document.getElementById('themeToggle');
@@ -804,7 +818,15 @@
       updateThemeIcon(currentTheme);
 
       themeToggle.addEventListener('click', () => {
-        const newTheme = htmlElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        const currentTheme = htmlElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        // Track theme toggle
+        window.trackEvent('Theme Toggled', {
+          previous_theme: currentTheme,
+          new_theme: newTheme
+        });
+        
         htmlElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         updateThemeIcon(newTheme);
@@ -831,6 +853,13 @@
         fileInput.addEventListener('change', function() {
           const file = this.files[0];
           if (file) {
+            // Track file selection
+            window.trackEvent('File Selected', {
+              file_name: file.name,
+              file_size: file.size,
+              file_type: file.type,
+              file_extension: file.name.split('.').pop().toLowerCase()
+            });
             // Check file size limit (100 MB)
             const maxSizeBytes = 100 * 1024 * 1024; // 100 MB
             
@@ -873,6 +902,17 @@
         calculateBtn.addEventListener('click', async function() {
           const file = fileInput.files[0];
           if (!file) return;
+
+          // Track file analysis start
+          window.trackEvent('File Analysis Started', {
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type,
+            analysis_type: 'hash_and_metadata'
+          });
+          
+          // Start timer for analysis duration
+          window.startTimer('File Analyzed');
 
           calculateBtn.disabled = true;
           loadingDiv.style.display = 'block';
@@ -939,11 +979,32 @@
             }
             
             resultDiv.style.display = 'block';
+            
+            // Track successful file analysis (completes the timer)
+            window.trackEvent('File Analyzed', {
+              file_name: file.name,
+              file_size: file.size,
+              file_type: file.type,
+              has_image_metadata: !!metadata.image,
+              entropy: metadata.binary?.entropy,
+              analysis_type: 'hash_and_metadata',
+              success: true
+            });
           } catch (error) {
             alert('Error processing file: ' + error.message);
             console.error("Processing error:", error); // Log error for details
             currentFileUint8Array = null; // Reset on error
             document.getElementById('bytePatternAnalysisCard').style.display = 'none'; // Hide on error
+            
+            // Track file analysis error
+            window.trackEvent('File Analysis Failed', {
+              file_name: file.name,
+              file_size: file.size,
+              file_type: file.type,
+              error: error.message,
+              analysis_type: 'hash_and_metadata',
+              success: false
+            });
           } finally {
             loadingDiv.style.display = 'none';
             calculateBtn.disabled = false;
@@ -1689,6 +1750,15 @@
         const topic = document.getElementById('jokeTopic').value.trim();
         if (!topic) return;
         
+        // Track joke form submission
+        window.trackEvent('Joke Form Submitted', {
+          topic: topic,
+          topic_length: topic.length
+        });
+        
+        // Start timer for joke generation
+        window.startTimer('Joke Generated');
+        
         currentJokeTopic = topic;
         await fetchJoke(topic);
       });
@@ -1717,6 +1787,13 @@
           jokeContent.textContent = jokeText;
           resultDiv.style.display = 'block';
           
+          // Track successful joke generation (this completes the timer)
+          window.trackEvent('Joke Generated', {
+            topic: topic,
+            joke_length: jokeText.length,
+            success: true
+          });
+          
         } catch (error) {
           console.error('Error fetching joke:', error);
           jokeContent.innerHTML = `
@@ -1726,6 +1803,13 @@
             </div>
           `;
           resultDiv.style.display = 'block';
+          
+          // Track joke generation failure
+          window.trackEvent('Joke Generation Failed', {
+            topic: topic,
+            error: error.message,
+            success: false
+          });
         } finally {
           loadingDiv.style.display = 'none';
           getJokeBtn.disabled = false;

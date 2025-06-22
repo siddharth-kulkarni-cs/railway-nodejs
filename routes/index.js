@@ -4,6 +4,7 @@ const router = express.Router();
 const { contentstackRedirectFragment, dynamicWordFragement, inputTextFragment } = require('../services/html-fragments');
 const { generateContent, generateJoke } = require('../services/gen-ai');
 const { getCompletionForWrongWord, getJokeFromGroq } = require('../services/groq-ai-client');
+const mixpanel = require('../services/mixpanel');
 
 const api_key = process.env.GEMINI_API_KEY;
 // Add a simple in-memory cache
@@ -28,6 +29,14 @@ setInterval(cleanupCache, 60 * 60 * 1000);
 
 // Serve the index.html file for the root route
 router.get('/', (req, res) => {
+  // Track page view
+  mixpanel.track(mixpanel.EVENTS.PAGE_VIEW, {
+    page: 'home',
+    path: req.path,
+    ip: req.ip,
+    userAgent: req.get('user-agent')
+  });
+
   // Calculate expiration one year from now
   const oneYearFromNow = new Date();
   oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
@@ -59,12 +68,27 @@ router.get('/word-usage', async (req, res) => {
     return; // Add return to prevent further execution
   }
 
+  // Track word search event
+  mixpanel.track(mixpanel.EVENTS.WORD_SEARCHED, {
+    word: word.trim().toLowerCase(),
+    wordLength: word.trim().length,
+    ip: req.ip,
+    userAgent: req.get('user-agent')
+  });
+
    // Fix the contentstack check and add redirection
   // In your word-usage route handler
   word = word.trim();
  console.log(`word == ${word}`)
 if(word.toLowerCase() === 'contentstack') {
   console.log('Showing loader before redirecting to Contentstack website');
+  
+  // Track Contentstack redirect
+  mixpanel.track(mixpanel.EVENTS.CONTENTSTACK_REDIRECT, {
+    word: word,
+    ip: req.ip,
+    userAgent: req.get('user-agent')
+  });
   
   // Send an HTML page with loader and auto-redirect
   return res.send(contentstackRedirectFragment());
@@ -206,8 +230,18 @@ router.get('/joke', async (req, res) => {
     res.status(400).send('Topic is required');
     return;
   }
+
+  
   // randomly call gemini or groq api
   const random = Math.random();
+  // Track joke request
+  mixpanel.track(mixpanel.EVENTS.JOKE_REQUESTED, {
+    topic: topic.trim(),
+    topicLength: topic.trim().length,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+    model: random < 0.5 ? 'groq' : 'gemini'
+  });
   if (random < 0.5) {
     console.log('Using Groq API for joke');
     const joke = await getJokeFromGroq(topic);
