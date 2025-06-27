@@ -43,6 +43,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// WebSocket Client
+document.addEventListener('DOMContentLoaded', () => {
+    const ws = new WebSocket(`ws://${window.location.host}`);
+
+    ws.onopen = () => {
+        console.log('Connected to WebSocket server');
+        ws.send('Hello Server!');
+    };
+
+    ws.onmessage = (event) => {
+        console.log(`Message from server: ${event.data}`);
+    };
+
+    ws.onclose = () => {
+        console.log('Disconnected from WebSocket server');
+    };
+
+    ws.onerror = (error) => {
+        console.error(`WebSocket error: ${error.message}`);
+    };
+});
+
 // Search Functionality
 const searchForm = document.querySelector('form[role="search"]');
 if (searchForm) {
