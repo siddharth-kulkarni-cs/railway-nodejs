@@ -177,4 +177,111 @@ document.getElementById('validateCurlBtn')?.addEventListener('click', () => {
   const cmd = document.getElementById('curlInput').value;
   const res = validateCurl(cmd);
   displayCurlResult(res);
+});
+
+// -----------------------------
+// Timestamp Converter
+// -----------------------------
+function parseInputToDate(input) {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // Pure or fractional numeric input → epoch seconds or ms
+  if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    const num = Number(trimmed);
+    if (!Number.isFinite(num)) return null;
+    if (trimmed.includes('.')) {
+      // Treat as seconds with fractional part
+      return new Date(num * 1000);
+    }
+    // Decide by length heuristic: 13+ digits = ms, 10 or fewer = s, 11-12 = ms (1970-2000 era)
+    const ms = trimmed.length >= 13 || trimmed.length >= 11 ? num : num * 1000;
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // ISO-8601 & RFC 2822 handled natively
+  const native = new Date(trimmed);
+  if (!isNaN(native.getTime())) return native;
+
+  // YYYY-MM-DD HH:mm[:ss]
+  let m = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (m) {
+    const [_, y, mo, d, h = '00', mi = '00', s = '00'] = m;
+    const utc = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
+    return isNaN(utc.getTime()) ? null : utc;
+  }
+  return null;
+}
+
+function humanRelative(date) {
+  const diffSec = Math.round((Date.now() - date.getTime()) / 1000);
+  if (diffSec === 0) return 'now';
+  const abs = Math.abs(diffSec);
+  const units = [
+    { s: 60, name: 'second' },
+    { s: 60, name: 'minute' },
+    { s: 24, name: 'hour' },
+    { s: 7, name: 'day' },
+    { s: 4.34524, name: 'week' },
+    { s: 12, name: 'month' },
+    { s: 1000, name: 'year' }
+  ];
+  let unit = 'second';
+  let value = abs;
+  let i = 0;
+  while (i < units.length && value >= units[i].s) {
+    value = value / units[i].s;
+    unit = units[i].name;
+    i++;
+  }
+  value = Math.round(value);
+  if (value !== 1) unit += 's';
+  return diffSec > 0 ? `${value} ${unit} ago` : `in ${value} ${unit}`;
+}
+
+function buildTimestampHTML(date) {
+  const epochMs = date.getTime();
+  const epochSInt = Math.floor(epochMs / 1000);
+  const epochSFrac = (epochMs / 1000).toFixed(3);
+  const tzOffsetMin = -date.getTimezoneOffset();
+  const tzSign = tzOffsetMin >= 0 ? '+' : '-';
+  const pad = n => String(Math.abs(n)).padStart(2, '0');
+  const tzOffsetStr = `${tzSign}${pad(Math.floor(Math.abs(tzOffsetMin) / 60))}:${pad(Math.abs(tzOffsetMin) % 60)}`;
+  return `
+    <ul class="list-group">
+      <li class="list-group-item"><strong>Unix (seconds):</strong> <code>${epochSInt}</code></li>
+      <li class="list-group-item"><strong>Unix (seconds, fractional):</strong> <code>${epochSFrac}</code></li>
+      <li class="list-group-item"><strong>Unix (milliseconds):</strong> <code>${epochMs}</code></li>
+      <li class="list-group-item"><strong>ISO-8601 (UTC):</strong> <code>${date.toISOString()}</code></li>
+      <li class="list-group-item"><strong>Local (${tzOffsetStr}):</strong> ${date.toLocaleString()}</li>
+      <li class="list-group-item"><strong>UTC:</strong> ${date.toUTCString()}</li>
+      <li class="list-group-item text-muted"><em>${humanRelative(date)}</em></li>
+    </ul>
+  `;
+}
+
+function showTimestampResult(success, htmlOrMsg) {
+  const container = document.getElementById('timestampResult');
+  if (!container) return;
+  container.innerHTML = success
+    ? `<div class="alert alert-success">Converted successfully</div>${htmlOrMsg}`
+    : `<div class="alert alert-danger"><strong>Error:</strong> ${htmlOrMsg}</div>`;
+}
+
+document.getElementById('convertTimestampBtn')?.addEventListener('click', () => {
+  const input = document.getElementById('timestampInput').value;
+  const date = parseInputToDate(input);
+  if (!date) {
+    showTimestampResult(false, 'Unrecognized timestamp format');
+    return;
+  }
+  showTimestampResult(true, buildTimestampHTML(date));
+});
+
+document.getElementById('nowTimestampBtn')?.addEventListener('click', () => {
+  const now = Date.now();
+  document.getElementById('timestampInput').value = now.toString();
+  const date = new Date(now);
+  showTimestampResult(true, buildTimestampHTML(date));
 }); 

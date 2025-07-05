@@ -43,7 +43,14 @@
     </nav>
 
     <main class="container my-5">
-      <h1 class="mb-4 text-center" style="color: var(--primary-color);">Base64 Encoder / Decoder</h1>
+      <!-- Tools Navigation -->
+      <nav class="nav nav-pills justify-content-center mb-4" style="flex-wrap: wrap; gap: 0.5rem;">
+        <a class="nav-link btn-outline-primary" href="#base64">Base64</a>
+        <a class="nav-link btn-outline-primary" href="#curl-validator">cURL&nbsp;Validator</a>
+        <a class="nav-link btn-outline-primary" href="#timestamp">Timestamp</a>
+      </nav>
+
+      <h1 id="base64" class="mb-4 text-center" style="color: var(--primary-color);">Base64 Encoder / Decoder</h1>
 
       <div class="tool-card">
         <div class="form-group">
@@ -62,7 +69,7 @@
       </div>
 
       <!-- Curl Validator Card -->
-      <h2 class="mt-5 mb-4 text-center" style="color: var(--primary-color);">cURL Command Validator</h2>
+      <h2 id="curl-validator" class="mt-5 mb-4 text-center" style="color: var(--primary-color);">cURL Command Validator</h2>
       <div class="tool-card">
         <div class="form-group">
           <label for="curlInput">cURL Command</label>
@@ -70,6 +77,20 @@
         </div>
         <button id="validateCurlBtn" class="btn btn-primary mb-3">Validate ✅</button>
         <div id="curlResult"></div>
+      </div>
+
+      <!-- Timestamp Converter Card -->
+      <h2 id="timestamp" class="mt-5 mb-4 text-center" style="color: var(--primary-color);">Timestamp Converter</h2>
+      <div class="tool-card">
+        <div class="form-group">
+          <label for="timestampInput">Timestamp Input</label>
+          <input id="timestampInput" type="text" class="form-control" placeholder="Epoch (s/ms), ISO-8601, or YYYY-MM-DD HH:mm:ss">
+        </div>
+        <div class="btn-group mb-3" role="group">
+          <button id="convertTimestampBtn" class="btn btn-primary">Convert 🔄</button>
+          <button id="nowTimestampBtn" class="btn btn-secondary">Now ⏱️</button>
+        </div>
+        <div id="timestampResult"></div>
       </div>
     </main>
 
