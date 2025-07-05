@@ -268,4 +268,8 @@ router.get('/joke', async (req, res) => {
   
 });
 
+router.get('/dev-tools', (req, res) => {
+  res.sendFile(path.join(__dirname, '../views/dev-tools.html'));
+});
+
 module.exports = router;

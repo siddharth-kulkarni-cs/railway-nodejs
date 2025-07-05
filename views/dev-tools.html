@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="description" content="Developer utilities – Base64 encoder/decoder">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Dev Tools – Base64</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+    <style>
+      :root {
+        --primary-color: #4a6fa5;
+        --secondary-color: #6e9887;
+        --light-bg: #f8f9fa;
+        --card-bg: #ffffff;
+        --shadow-color: rgba(0,0,0,0.1);
+      }
+
+      [data-theme="dark"] {
+        --primary-color: #6b8cc4;
+        --secondary-color: #8ab4a1;
+        --light-bg: #1a1a1a;
+        --card-bg: #2d2d2d;
+        --shadow-color: rgba(0,0,0,0.3);
+        color-scheme: dark;
+      }
+
+      body {
+        background-color: var(--light-bg);
+      }
+
+      .tool-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px var(--shadow-color);
+        padding: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-light" style="background-color: var(--card-bg); box-shadow: 0 2px 6px var(--shadow-color);">
+      <a class="navbar-brand" href="/">🔙 Home</a>
+      <span class="navbar-text font-weight-bold" style="color: var(--primary-color);">Dev Tools</span>
+    </nav>
+
+    <main class="container my-5">
+      <h1 class="mb-4 text-center" style="color: var(--primary-color);">Base64 Encoder / Decoder</h1>
+
+      <div class="tool-card">
+        <div class="form-group">
+          <label for="inputText">Input</label>
+          <textarea id="inputText" class="form-control" rows="4" placeholder="Enter text or Base64 string..."></textarea>
+        </div>
+        <div class="btn-group mb-3" role="group">
+          <button id="encodeBtn" class="btn btn-primary">Encode 🔐</button>
+          <button id="decodeBtn" class="btn btn-secondary">Decode 🔓</button>
+        </div>
+        <div class="form-group">
+          <label for="resultText">Result</label>
+          <textarea id="resultText" class="form-control" rows="4" readonly></textarea>
+          <button id="copyResult" class="btn btn-outline-info mt-2">Copy 📋</button>
+        </div>
+      </div>
+
+      <!-- Curl Validator Card -->
+      <h2 class="mt-5 mb-4 text-center" style="color: var(--primary-color);">cURL Command Validator</h2>
+      <div class="tool-card">
+        <div class="form-group">
+          <label for="curlInput">cURL Command</label>
+          <textarea id="curlInput" class="form-control" rows="4" placeholder="e.g. curl -X POST -H \"Content-Type: application/json\" https://api.example.com/resource -d '{\"key\":\"value\"}'"></textarea>
+        </div>
+        <button id="validateCurlBtn" class="btn btn-primary mb-3">Validate ✅</button>
+        <div id="curlResult"></div>
+      </div>
+    </main>
+
+    <script src="/javascript/dev-tools.js"></script>
+  </body>
+</html> 
