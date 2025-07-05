@@ -165,6 +165,9 @@
         <button class="btn btn-animation" onclick="switchAnimation('physics')">Physics</button>
         <button class="btn btn-animation" onclick="switchAnimation('audio')">Audio Viz</button>
         <button class="btn btn-animation" onclick="switchAnimation('neural')">Neural Net</button>
+        <button class="btn btn-animation btn-info" onclick="switchAnimation('kaleidoscope')">Kaleidoscope ✨</button>
+        <button class="btn btn-animation btn-info" onclick="switchAnimation('terrain')">3D Terrain 🏔️</button>
+        <button class="btn btn-animation btn-info" onclick="switchAnimation('cloth')">Cloth Sim 💨</button>
       </div>
     </div>
     
@@ -214,7 +217,10 @@
         flow: "Dynamic flow field where particles follow naturally curved paths. Move your mouse to create swirling vortexes and patterns.",
         physics: "Interactive physics playground with realistic gravity and collisions. Click to create objects and watch them interact.",
         audio: "Audio visualization that pulses with beat detection. Click anywhere to generate sound waves and see them visualized.",
-        neural: "Artificial neural network simulation that learns to follow your movements. Train it by drawing patterns with your mouse."
+        neural: "Artificial neural network simulation that learns to follow your movements. Train it by drawing patterns with your mouse.",
+        kaleidoscope: "Draw with your mouse to create beautiful, symmetrical patterns. The kaleidoscope effect reflects your drawing across multiple axes. Press any key to clear the canvas.",
+        terrain: "Fly over a procedurally generated 3D landscape. The terrain is created using Perlin noise. Use your mouse to look around.",
+        cloth: "An interactive cloth simulation using Verlet integration. Click and drag points to move the cloth. Right-click and drag to tear it."
       };
       
       document.getElementById('animationDescription').textContent = descriptions[type];
@@ -250,9 +256,34 @@
       let gravity;
       let time = 0;
       
+      // Kaleidoscope variables
+      let symmetry = 6;
+      let angle;
+      let kaleidoscopeBrushSize = 4;
+      let kaleidoscopeHue = 0;
+
+      // 3D Terrain variables
+      let cols, rows;
+      let scl = 20;
+      let w = 1400;
+      let h = 1000;
+      let flying = 0;
+      let terrain = [];
+      
+      // Cloth simulation variables
+      let clothPoints = [];
+      let clothSticks = [];
+      let draggedPoint = null;
+      let clothGravity;
+
       p.setup = function() {
         const container = document.getElementById('canvasContainer');
-        const canvas = p.createCanvas(container.offsetWidth, 400);
+        let canvas;
+        if (currentAnimationType === 'terrain') {
+          canvas = p.createCanvas(container.offsetWidth, 400, p.WEBGL);
+        } else {
+          canvas = p.createCanvas(container.offsetWidth, 400);
+        }
         p.colorMode(p.HSB, 255);
         
         // Initialize based on animation type
@@ -297,6 +328,12 @@
         } else if (currentAnimationType === 'neural') {
           // Initialize neural network
           initNeuralNetwork();
+        } else if (currentAnimationType === 'kaleidoscope') {
+          initKaleidoscope();
+        } else if (currentAnimationType === 'terrain') {
+          initTerrain();
+        } else if (currentAnimationType === 'cloth') {
+          initCloth();
         }
       };
       
@@ -325,6 +362,26 @@
           drawAudio();
         } else if (currentAnimationType === 'neural') {
           drawNeuralNetwork();
+        } else if (currentAnimationType === 'kaleidoscope') {
+          drawKaleidoscope();
+        } else if (currentAnimationType === 'terrain') {
+          drawTerrain();
+        } else if (currentAnimationType === 'cloth') {
+          drawCloth();
+        }
+      };
+      
+      p.windowResized = function() {
+        const container = document.getElementById('canvasContainer');
+        p.resizeCanvas(container.offsetWidth, 400);
+        // Re-initialize animations that depend on screen size
+        if (currentAnimationType === 'terrain') initTerrain();
+        if (currentAnimationType === 'cloth') initCloth();
+      };
+
+      p.keyPressed = function() {
+        if (currentAnimationType === 'kaleidoscope') {
+          p.background(0, 0, 10);
         }
       };
       
@@ -343,12 +400,22 @@
           createAudioPulse(p.mouseX, p.mouseY);
         }
         
-        // For neural network, start recording mouse trail when pressed
         if (currentAnimationType === 'neural' && 
             p.mouseX > 0 && p.mouseX < p.width && 
             p.mouseY > 0 && p.mouseY < p.height) {
           trainingData = [];
           trainingData.push({x: p.mouseX, y: p.mouseY});
+        }
+        
+        if (currentAnimationType === 'cloth' && p.mouseButton === p.LEFT) {
+          let closestDist = Infinity;
+          for (let point of clothPoints) {
+            const d = p.dist(p.mouseX, p.mouseY, point.pos.x, point.pos.y);
+            if (d < 20 && d < closestDist) {
+              closestDist = d;
+              draggedPoint = point;
+            }
+          }
         }
       };
       
@@ -363,11 +430,27 @@
           // Create a vortex at the mouse position
           createVortex(p.mouseX, p.mouseY);
         }
+
+        if (currentAnimationType === 'cloth') {
+          if (draggedPoint) {
+            draggedPoint.pos.set(p.mouseX, p.mouseY);
+          } else if (p.mouseButton === p.RIGHT) {
+            // Tear cloth
+            for (let i = clothSticks.length - 1; i >= 0; i--) {
+              if (clothSticks[i].isNearMouse(p.mouseX, p.mouseY, p.pmouseX, p.pmouseY)) {
+                clothSticks.splice(i, 1);
+              }
+            }
+          }
+        }
       };
       
       p.mouseReleased = function() {
         if (currentAnimationType === 'neural' && trainingData.length > 5) {
           trainNeuralNetwork(trainingData);
+        }
+        if (currentAnimationType === 'cloth') {
+          draggedPoint = null;
         }
       };
       
@@ -1671,11 +1754,211 @@
           neuron.targetRadius = 30;
         }
       }
+
+      // Kaleidoscope animation
+      function initKaleidoscope() {
+        angle = p.TWO_PI / symmetry;
+        p.background(0, 0, 10);
+      }
+      
+      function drawKaleidoscope() {
+        // Only draw when mouse is pressed
+        if (p.mouseIsPressed) {
+          p.translate(p.width / 2, p.height / 2);
+
+          for (let i = 0; i < symmetry; i++) {
+            p.rotate(angle);
+            
+            // Draw line with changing color
+            kaleidoscopeHue = (kaleidoscopeHue + 0.5) % 255;
+            p.stroke(kaleidoscopeHue, 200, 255, 200);
+            p.strokeWeight(kaleidoscopeBrushSize);
+            
+            const mx = p.mouseX - p.width / 2;
+            const my = p.mouseY - p.height / 2;
+            const pmx = p.pmouseX - p.width / 2;
+            const pmy = p.pmouseY - p.height / 2;
+            
+            p.line(mx, my, pmx, pmy);
+            
+            // Mirrored line
+            p.push();
+            p.scale(1, -1);
+            p.line(mx, my, pmx, pmy);
+            p.pop();
+          }
+        }
+      }
+
+      // 3D Terrain animation
+      function initTerrain() {
+        cols = Math.floor(w / scl);
+        rows = Math.floor(h / scl);
+        terrain = new Array(cols).fill(0).map(() => new Array(rows).fill(0));
+      }
+
+      function drawTerrain() {
+        flying -= 0.05;
+        let yoff = flying;
+        for (let y = 0; y < rows; y++) {
+          let xoff = 0;
+          for (let x = 0; x < cols; x++) {
+            terrain[x][y] = p.map(p.noise(xoff, yoff), 0, 1, -100, 100);
+            xoff += 0.1;
+          }
+          yoff += 0.1;
+        }
+
+        p.background(0, 0, 15);
+        p.stroke(150, 150, 255, 50);
+        p.noFill();
+
+        // Camera control
+        let camX = p.map(p.mouseX, 0, p.width, -200, 200);
+        let camY = p.map(p.mouseY, 0, p.height, -200, 200);
+        p.camera(camX, camY + 200, 500, 0, 0, 0, 0, 1, 0);
+
+        p.rotateX(p.PI / 3);
+        p.translate(-w / 2, -h / 2);
+
+        for (let y = 0; y < rows - 1; y++) {
+          p.beginShape(p.TRIANGLE_STRIP);
+          for (let x = 0; x < cols; x++) {
+            // Color based on height
+            const h1 = terrain[x][y];
+            const h2 = terrain[x][y+1];
+            p.fill(p.map(h1, -100, 100, 120, 220), 200, 255);
+            p.vertex(x * scl, y * scl, h1);
+            p.fill(p.map(h2, -100, 100, 120, 220), 200, 255);
+            p.vertex(x * scl, (y + 1) * scl, h2);
+          }
+          p.endShape();
+        }
+      }
+
+      // Cloth Simulation
+      class ClothPoint {
+        constructor(x, y) {
+          this.pos = p.createVector(x, y);
+          this.prevPos = p.createVector(x, y);
+          this.acc = p.createVector(0, 0);
+          this.isPinned = false;
+        }
+        
+        applyForce(force) {
+          this.acc.add(force);
+        }
+
+        update(deltaTime) {
+          if (this.isPinned) return;
+          
+          let vel = p5.Vector.sub(this.pos, this.prevPos);
+          vel.mult(0.99); // Damping
+          
+          this.prevPos.set(this.pos);
+          
+          let nextPos = p5.Vector.add(this.pos, vel);
+          nextPos.add(p5.Vector.mult(this.acc, deltaTime * deltaTime));
+          this.pos.set(nextPos);
+          
+          this.acc.mult(0);
+        }
+
+        display() {
+          p.stroke(255);
+          p.strokeWeight(this.isPinned ? 8 : 4);
+          p.point(this.pos.x, this.pos.y);
+        }
+      }
+      
+      class ClothStick {
+        constructor(p1, p2) {
+          this.p1 = p1;
+          this.p2 = p2;
+          this.length = p.dist(p1.pos.x, p1.pos.y, p2.pos.x, p2.pos.y);
+        }
+        
+        update() {
+          const diff = p5.Vector.sub(this.p2.pos, this.p1.pos);
+          const dist = diff.mag();
+          const diffFactor = (this.length - dist) / dist;
+          const offset = p5.Vector.mult(diff, diffFactor * 0.5);
+
+          if (!this.p1.isPinned) this.p1.pos.sub(offset);
+          if (!this.p2.isPinned) this.p2.pos.add(offset);
+        }
+        
+        isNearMouse(mx, my, pmx, pmy) {
+          // Check if mouse line segment intersects this stick
+          const d1 = p.dist(mx, my, this.p1.pos.x, this.p1.pos.y);
+          const d2 = p.dist(mx, my, this.p2.pos.x, this.p2.pos.y);
+          return (d1 + d2 >= this.length - 1 && d1 + d2 <= this.length + 1);
+        }
+
+        display() {
+          p.stroke(255, 100);
+          p.strokeWeight(1);
+          p.line(this.p1.pos.x, this.p1.pos.y, this.p2.pos.x, this.p2.pos.y);
+        }
+      }
+
+      function initCloth() {
+        clothPoints = [];
+        clothSticks = [];
+        clothGravity = p.createVector(0, 0.5);
+        
+        const cols = 35;
+        const rows = 20;
+        const spacing = 15;
+        const startX = p.width / 2 - (cols * spacing) / 2;
+
+        for (let y = 0; y <= rows; y++) {
+          for (let x = 0; x <= cols; x++) {
+            const point = new ClothPoint(startX + x * spacing, 50 + y * spacing);
+            if (y === 0) { // Pin top row
+              point.isPinned = true;
+            }
+            clothPoints.push(point);
+
+            // Add horizontal stick
+            if (x > 0) {
+              clothSticks.push(new ClothStick(clothPoints[clothPoints.length - 2], point));
+            }
+            // Add vertical stick
+            if (y > 0) {
+              clothSticks.push(new ClothStick(clothPoints[clothPoints.length - (cols + 2)], point));
+            }
+          }
+        }
+      }
+      
+      function drawCloth() {
+        p.background(0, 0, 20);
+
+        // Update physics
+        for (let point of clothPoints) {
+          point.applyForce(clothGravity);
+          point.update(0.5);
+        }
+
+        // Constraint satisfaction loops
+        for (let i = 0; i < 5; i++) {
+          for (let stick of clothSticks) {
+            stick.update();
+          }
+        }
+
+        // Display
+        for (let stick of clothSticks) {
+          stick.display();
+        }
+      }
+
     };
     
     // Randomly select an animation on page load
     document.addEventListener('DOMContentLoaded', function() {
-      const animations = ['particles', 'waves', 'flocking', 'fireworks', 'bubbles', 'matrix', 'starfield', 'geometric', 'flow', 'physics', 'audio', 'neural'];
+      const animations = ['particles', 'waves', 'flocking', 'fireworks', 'bubbles', 'matrix', 'starfield', 'geometric', 'flow', 'physics', 'audio', 'neural', 'kaleidoscope', 'terrain', 'cloth'];
       const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
       switchAnimation(randomAnimation);
     });
