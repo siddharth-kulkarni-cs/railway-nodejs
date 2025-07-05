@@ -52,70 +52,79 @@
         <a class="nav-link btn-outline-primary" href="#password-strength">Password Strength</a>
       </nav>
 
-      <h1 id="base64" class="mb-4 text-center" style="color: var(--primary-color);">Base64 Encoder / Decoder</h1>
-
-      <div class="tool-card">
-        <div class="form-group">
-          <label for="inputText">Input</label>
-          <textarea id="inputText" class="form-control" rows="4" placeholder="Enter text or Base64 string..."></textarea>
+      <details id="base64" class="mb-5" open>
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">Base64 Encoder / Decoder</summary>
+        <div class="tool-card mt-3">
+          <div class="form-group">
+            <label for="inputText">Input</label>
+            <textarea id="inputText" class="form-control" rows="4" placeholder="Enter text or Base64 string..."></textarea>
+          </div>
+          <div class="btn-group mb-3" role="group">
+            <button id="encodeBtn" class="btn btn-primary">Encode 🔐</button>
+            <button id="decodeBtn" class="btn btn-secondary">Decode 🔓</button>
+          </div>
+          <div class="form-group">
+            <label for="resultText">Result</label>
+            <textarea id="resultText" class="form-control" rows="4" readonly></textarea>
+            <button id="copyResult" class="btn btn-outline-info mt-2">Copy 📋</button>
+          </div>
         </div>
-        <div class="btn-group mb-3" role="group">
-          <button id="encodeBtn" class="btn btn-primary">Encode 🔐</button>
-          <button id="decodeBtn" class="btn btn-secondary">Decode 🔓</button>
-        </div>
-        <div class="form-group">
-          <label for="resultText">Result</label>
-          <textarea id="resultText" class="form-control" rows="4" readonly></textarea>
-          <button id="copyResult" class="btn btn-outline-info mt-2">Copy 📋</button>
-        </div>
-      </div>
+      </details>
 
       <!-- Curl Validator Card -->
-      <h2 id="curl-validator" class="mt-5 mb-4 text-center" style="color: var(--primary-color);">cURL Command Validator</h2>
-      <div class="tool-card">
-        <div class="form-group">
-          <label for="curlInput">cURL Command</label>
-          <textarea id="curlInput" class="form-control" rows="4" placeholder="e.g. curl -X POST -H \"Content-Type: application/json\" https://api.example.com/resource -d '{\"key\":\"value\"}'"></textarea>
+      <details id="curl-validator" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">cURL Command Validator</summary>
+        <div class="tool-card mt-3">
+          <div class="form-group">
+            <label for="curlInput">cURL Command</label>
+            <textarea id="curlInput" class="form-control" rows="4" placeholder="e.g. curl -X POST -H \"Content-Type: application/json\" https://api.example.com/resource -d '{\"key\":\"value\"}'"></textarea>
+          </div>
+          <button id="validateCurlBtn" class="btn btn-primary mb-3">Validate ✅</button>
+          <div id="curlResult"></div>
         </div>
-        <button id="validateCurlBtn" class="btn btn-primary mb-3">Validate ✅</button>
-        <div id="curlResult"></div>
-      </div>
+      </details>
 
       <!-- Timestamp Converter Card -->
-      <h2 id="timestamp" class="mt-5 mb-4 text-center" style="color: var(--primary-color);">Timestamp Converter</h2>
-      <div class="tool-card">
-        <div class="form-group">
-          <label for="timestampInput">Timestamp Input</label>
-          <input id="timestampInput" type="text" class="form-control" placeholder="Epoch (s/ms), ISO-8601, or YYYY-MM-DD HH:mm:ss">
+      <details id="timestamp" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">Timestamp Converter</summary>
+        <div class="tool-card mt-3">
+          <div class="form-group">
+            <label for="timestampInput">Timestamp Input</label>
+            <input id="timestampInput" type="text" class="form-control" placeholder="Epoch (s/ms), ISO-8601, or YYYY-MM-DD HH:mm:ss">
+          </div>
+          <div class="btn-group mb-3" role="group">
+            <button id="convertTimestampBtn" class="btn btn-primary">Convert 🔄</button>
+            <button id="nowTimestampBtn" class="btn btn-secondary">Now ⏱️</button>
+          </div>
+          <div id="timestampResult"></div>
         </div>
-        <div class="btn-group mb-3" role="group">
-          <button id="convertTimestampBtn" class="btn btn-primary">Convert 🔄</button>
-          <button id="nowTimestampBtn" class="btn btn-secondary">Now ⏱️</button>
-        </div>
-        <div id="timestampResult"></div>
-      </div>
+      </details>
 
       <!-- JWT Debugger Card -->
-      <h2 id="jwt-debugger" class="mt-5 mb-4 text-center" style="color: var(--primary-color);">JWT Debugger</h2>
-      <div class="tool-card">
-        <div class="form-group">
-          <label for="jwtInput">JWT Token</label>
-          <textarea id="jwtInput" class="form-control" rows="5" placeholder="Paste your JWT here... e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"></textarea>
+      <details id="jwt-debugger" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">JWT Debugger</summary>
+        <div class="tool-card mt-3">
+          <div class="form-group">
+            <label for="jwtInput">JWT Token</label>
+            <textarea id="jwtInput" class="form-control" rows="5" placeholder="Paste your JWT here... e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"></textarea>
+          </div>
+          <button id="decodeJwtBtn" class="btn btn-primary mb-3">Decode 🔎</button>
+          <div id="jwtResult"></div>
         </div>
-        <button id="decodeJwtBtn" class="btn btn-primary mb-3">Decode 🔎</button>
-        <div id="jwtResult"></div>
-      </div>
+      </details>
 
       <!-- Password Strength Analyzer -->
-      <h2 id="password-strength" class="mt-5 mb-4 text-center" style="color: var(--primary-color);">Password Strength Analyzer</h2>
-      <div class="tool-card">
-        <div class="form-group">
-          <label for="passwordInput">Password</label>
-          <input type="password" id="passwordInput" class="form-control" placeholder="Enter a password to analyze...">
+      <details id="password-strength" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">Password Strength Analyzer</summary>
+        <div class="tool-card mt-3">
+          <div class="form-group">
+            <label for="passwordInput">Password</label>
+            <input type="password" id="passwordInput" class="form-control" placeholder="Enter a password to analyze...">
+          </div>
+          <button id="analyzePasswordBtn" class="btn btn-primary mb-3">Analyze Strength 💪</button>
+          <div id="passwordResult"></div>
         </div>
-        <button id="analyzePasswordBtn" class="btn btn-primary mb-3">Analyze Strength 💪</button>
-        <div id="passwordResult"></div>
-      </div>
+      </details>
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
