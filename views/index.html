@@ -374,7 +374,7 @@
   <body>
     <header class="site-header">
       <div class="container">
-        <nav class="navbar navbar-expand-lg navbar-custom">
+        <nav class="navbar navbar-expand-lg navbar-light navbar-custom">
           <a class="navbar-brand" href="/">
             <h1 class="site-title">Product Showcase</h1>
           </a>
@@ -835,6 +835,7 @@
       const currentTheme = localStorage.getItem('theme') || 'light';
       htmlElement.setAttribute('data-theme', currentTheme);
       updateThemeIcon(currentTheme);
+      updateNavbarTheme(currentTheme);
 
       themeToggle.addEventListener('click', () => {
         const currentTheme = htmlElement.getAttribute('data-theme');
@@ -849,6 +850,7 @@
         htmlElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         updateThemeIcon(newTheme);
+        updateNavbarTheme(newTheme);
       });
 
       function updateThemeIcon(theme) {
@@ -856,6 +858,19 @@
           themeIcon.className = 'fas fa-sun';
         } else {
           themeIcon.className = 'fas fa-moon';
+        }
+      }
+
+      function updateNavbarTheme(theme) {
+        const navbar = document.querySelector('.navbar-custom');
+        if (!navbar) return;
+
+        if (theme === 'dark') {
+          navbar.classList.remove('navbar-light');
+          navbar.classList.add('navbar-dark');
+        } else {
+          navbar.classList.remove('navbar-dark');
+          navbar.classList.add('navbar-light');
         }
       }
 
