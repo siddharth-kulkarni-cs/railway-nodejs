@@ -49,6 +49,7 @@
         <a class="nav-link btn-outline-primary" href="#curl-validator">cURL&nbsp;Validator</a>
         <a class="nav-link btn-outline-primary" href="#timestamp">Timestamp</a>
         <a class="nav-link btn-outline-primary" href="#jwt-debugger">JWT Debugger</a>
+        <a class="nav-link btn-outline-primary" href="#password-strength">Password Strength</a>
       </nav>
 
       <h1 id="base64" class="mb-4 text-center" style="color: var(--primary-color);">Base64 Encoder / Decoder</h1>
@@ -104,8 +105,21 @@
         <button id="decodeJwtBtn" class="btn btn-primary mb-3">Decode 🔎</button>
         <div id="jwtResult"></div>
       </div>
+
+      <!-- Password Strength Analyzer -->
+      <h2 id="password-strength" class="mt-5 mb-4 text-center" style="color: var(--primary-color);">Password Strength Analyzer</h2>
+      <div class="tool-card">
+        <div class="form-group">
+          <label for="passwordInput">Password</label>
+          <input type="password" id="passwordInput" class="form-control" placeholder="Enter a password to analyze...">
+        </div>
+        <button id="analyzePasswordBtn" class="btn btn-primary mb-3">Analyze Strength 💪</button>
+        <div id="passwordResult"></div>
+      </div>
     </main>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="/javascript/dev-tools.js"></script>
   </body>
 </html> 

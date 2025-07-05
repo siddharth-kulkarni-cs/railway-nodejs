@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // -----------------------------
 function tokenizeCurlCommand(cmd) {
   // Split command into tokens, preserving quoted substrings
-  const regex = /(?:"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|\S+)/g;
+  const regex = /(?:"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*np'|\S+)/g;
   return cmd.match(regex) || [];
 }
 
@@ -387,4 +387,268 @@ function handleDecodeJwt() {
   }
 }
 
-document.getElementById('decodeJwtBtn')?.addEventListener('click', handleDecodeJwt); 
+document.getElementById('decodeJwtBtn')?.addEventListener('click', handleDecodeJwt);
+
+// -----------------------------
+// Password Strength Analyzer
+// -----------------------------
+
+function getPatternName(pattern) {
+  const names = {
+    dictionary: '📖 Dictionary Word',
+    spatial: '⌨️ Keyboard Pattern',
+    repeat: '🔁 Repetition',
+    sequence: '🔢 Sequence',
+    regex: '🔠 Regex Match',
+    date: '📅 Date',
+  };
+  return names[pattern] || pattern;
+}
+
+function getPatternDetails(seq) {
+  const details = [];
+  if (seq.dictionary_name) {
+    details.push(`From the '${seq.dictionary_name}' dictionary.`);
+  }
+  if (seq.reversed) {
+    details.push('Reversed.');
+  }
+  if (seq.l33t) {
+    details.push('Uses l33t substitutions.');
+  }
+  if (seq.graph) {
+    details.push(`Based on the '${seq.graph}' keyboard layout.`);
+  }
+  if (seq.sequence_name) {
+    details.push(`An ascending/descending sequence of '${seq.sequence_name}'.`);
+  }
+  if (seq.regex_name) {
+    details.push(`Matches common pattern for '${seq.regex_name}'.`);
+  }
+  if (seq.day && seq.month && seq.year) {
+    details.push(`Recognized as the date ${seq.month}/${seq.day}/${seq.year}.`);
+  }
+  if (details.length === 0) {
+    return 'A common pattern.';
+  }
+  return details.join(' ');
+}
+
+function displayPasswordResult(result, password) {
+  const container = document.getElementById('passwordResult');
+  if (!container) return;
+
+  const score = result.score;
+  const feedback = result.feedback;
+  const crackTime = result.crack_times_display.offline_slow_hashing_1e4_per_second;
+
+  const scoreColors = ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997'];
+  const scoreLabels = ['Very Weak', 'Weak', 'Okay', 'Good', 'Strong'];
+
+  let html = `
+    <div class="mb-3">
+      <strong>Strength: ${scoreLabels[score]}</strong>
+      <div class="progress mt-2" style="height: 20px;">
+        <div class="progress-bar" role="progressbar" style="width: ${((score + 1) / 5) * 100}%; background-color: ${scoreColors[score]};" aria-valuenow="${score}" aria-valuemin="0" aria-valuemax="4"></div>
+      </div>
+    </div>
+    <div class="alert alert-info">
+      <strong>Estimated time to crack:</strong> ${crackTime}
+      <br>
+      <small class="text-muted">(assuming ~10k guesses/sec)</small>
+    </div>
+  `;
+
+  if (feedback.warning) {
+    html += `<div class="alert alert-warning"><strong>Warning:</strong> ${feedback.warning}</div>`;
+  }
+
+  if (feedback.suggestions && feedback.suggestions.length > 0) {
+    html += `
+      <h5>Suggestions for a stronger password:</h5>
+      <ul class="list-group list-group-flush mb-3">
+        ${feedback.suggestions.map(s => `<li class="list-group-item">${s}</li>`).join('')}
+      </ul>
+    `;
+  }
+
+  if (result.sequence && result.sequence.length > 0) {
+    html += `
+      <h5>Password Composition Analysis</h5>
+      <p>Your password is made of the following components:</p>
+      <table class="table table-bordered table-sm">
+        <thead class="thead-light">
+          <tr>
+            <th>Component</th>
+            <th>Pattern Type</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${result.sequence.map(seq => `
+            <tr>
+              <td><code>${seq.token}</code></td>
+              <td>${getPatternName(seq.pattern)}</td>
+              <td>${getPatternDetails(seq)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  container.innerHTML = html;
+
+  // -----------------------------
+  // Advanced technical metrics
+  // -----------------------------
+
+  const metrics = computeEntropyMetrics(password);
+
+  // Metrics table
+  const metricsTable = `
+    <h5 class="mt-4">Technical Metrics</h5>
+    <table class="table table-sm table-bordered mb-4">
+      <tbody>
+        <tr><th>Password Length</th><td>${metrics.length}</td></tr>
+        <tr><th>Character Sets Used</th><td>${metrics.charsetsUsed.join(', ') || 'None'}</td></tr>
+        <tr><th>Charset Size</th><td>${metrics.charsetSize}</td></tr>
+        <tr><th>Theoretical Entropy (Bits)</th><td>${metrics.theoreticalBits.toFixed(2)}</td></tr>
+        <tr><th>Shannon Entropy (Bits)</th><td>${metrics.shannonBits.toFixed(2)}</td></tr>
+      </tbody>
+    </table>
+  `;
+
+  container.insertAdjacentHTML('beforeend', metricsTable);
+
+  // Charts containers
+  const chartHTML = `
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <h6 class="text-center">Entropy vs Recommended (60 bits)</h6>
+        <canvas id="entropyChart" height="180"></canvas>
+      </div>
+      <div class="col-md-6 mb-4">
+        <h6 class="text-center">Character Category Distribution</h6>
+        <canvas id="charDistChart" height="180"></canvas>
+      </div>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', chartHTML);
+
+  renderCharts(metrics);
+}
+
+// Global Chart.js instances to avoid duplicates on re-render
+let entropyChartInstance = null;
+let charDistChartInstance = null;
+
+function computeEntropyMetrics(password) {
+  const length = password.length;
+  const categories = {
+    lowercase: /[a-z]/.test(password),
+    uppercase: /[A-Z]/.test(password),
+    digits: /[0-9]/.test(password),
+    symbols: /[^A-Za-z0-9]/.test(password)
+  };
+
+  const charsetsUsed = [];
+  let charsetSize = 0;
+  if (categories.lowercase) { charsetSize += 26; charsetsUsed.push('lowercase'); }
+  if (categories.uppercase) { charsetSize += 26; charsetsUsed.push('uppercase'); }
+  if (categories.digits)    { charsetSize += 10; charsetsUsed.push('digits'); }
+  if (categories.symbols)   { charsetSize += 33; charsetsUsed.push('symbols'); }
+
+  const theoreticalBits = length * Math.log2(charsetSize || 1);
+
+  // Shannon entropy based on actual character distribution
+  const freq = {};
+  for (const ch of password) {
+    freq[ch] = (freq[ch] || 0) + 1;
+  }
+  let shannon = 0;
+  for (const count of Object.values(freq)) {
+    const p = count / length;
+    shannon += -p * Math.log2(p);
+  }
+  const shannonBits = shannon * length;
+
+  return { length, charsetsUsed, charsetSize, theoreticalBits, shannonBits, freq };
+}
+
+function renderCharts(metrics) {
+  // Destroy previous instances if they exist
+  if (entropyChartInstance) entropyChartInstance.destroy();
+  if (charDistChartInstance) charDistChartInstance.destroy();
+
+  const ctxEntropy = document.getElementById('entropyChart').getContext('2d');
+  const ctxChar = document.getElementById('charDistChart').getContext('2d');
+
+  entropyChartInstance = new Chart(ctxEntropy, {
+    type: 'bar',
+    data: {
+      labels: ['Password', 'Recommended'],
+      datasets: [{
+        label: 'Bits of Entropy',
+        data: [metrics.theoreticalBits, 60],
+        backgroundColor: ['#17a2b8', '#6c757d']
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Bits' } }
+      }
+    }
+  });
+
+  const values = [
+    metrics.charsetsUsed.includes('lowercase') ? 1 : 0,
+    metrics.charsetsUsed.includes('uppercase') ? 1 : 0,
+    metrics.charsetsUsed.includes('digits') ? 1 : 0,
+    metrics.charsetsUsed.includes('symbols') ? 1 : 0,
+  ];
+
+  charDistChartInstance = new Chart(ctxChar, {
+    type: 'pie',
+    data: {
+      labels: ['lowercase', 'uppercase', 'digits', 'symbols'],
+      datasets: [{
+        data: values,
+        backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545']
+      }]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+}
+
+document.getElementById('analyzePasswordBtn')?.addEventListener('click', () => {
+  const passwordInput = document.getElementById('passwordInput');
+  const password = passwordInput.value;
+  const resultContainer = document.getElementById('passwordResult');
+  
+  if (!password) {
+    resultContainer.innerHTML = '';
+    return;
+  }
+
+  const result = zxcvbn(password);
+  displayPasswordResult(result, password);
+});
+
+// Add an event listener to the input field to provide real-time feedback
+document.getElementById('passwordInput')?.addEventListener('input', (e) => {
+    const password = e.target.value;
+    const resultContainer = document.getElementById('passwordResult');
+
+    if (!password) {
+        resultContainer.innerHTML = '';
+        return;
+    }
+    
+    const result = zxcvbn(password);
+    displayPasswordResult(result, password);
+}); 
