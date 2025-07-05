@@ -54,9 +54,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // -----------------------------
 // cURL Command Validator
 // -----------------------------
+// Remove line-continuations (backslash + newline) and collapse whitespace
+function preprocessCurlCommand(cmd) {
+  return cmd.replace(/\\\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function tokenizeCurlCommand(cmd) {
-  // Split command into tokens, preserving quoted substrings
-  const regex = /(?:"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*np'|\S+)/g;
+  // Robust whitespace split preserving quoted substrings & escapes
+  const regex = /(?:[^\s"']+|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')+/g;
   return cmd.match(regex) || [];
 }
 
@@ -80,12 +85,33 @@ function validateCurl(cmd) {
   if (hasUnmatchedQuotes(cmd)) {
     errors.push('Unmatched single or double quotes');
   }
-  const tokens = tokenizeCurlCommand(cmd);
+  cmd = preprocessCurlCommand(cmd);
+  const rawTokens = tokenizeCurlCommand(cmd);
+
+  // Expand inline = and combined short options
+  const tokens = [];
+  for (let tok of rawTokens) {
+    // Split --long=value into [--long, value]
+    if (/^--[^=]+=/.test(tok)) {
+      const [flag, value] = tok.split(/=(.*)/s);
+      tokens.push(flag, value);
+      continue;
+    }
+    // Handle short combined flags: -LsS -> -L -s -S
+    if (/^-[a-zA-Z]{2,}$/.test(tok) && !tok.startsWith('--')) {
+      const chars = tok.slice(1).split('');
+      chars.forEach(c => tokens.push('-' + c));
+      continue;
+    }
+    tokens.push(tok);
+  }
+
   let i = tokens[0] === 'curl' ? 1 : 0;
   const optionSpec = {
     '-X': true, '--request': true,
     '-H': true, '--header': true,
     '-d': true, '--data': true, '--data-raw': true,
+    '--data-binary': true, '--data-urlencode': true,
     '-F': true, '--form': true,
     '-u': true, '--user': true,
     '-I': false, '--head': false,
@@ -94,7 +120,18 @@ function validateCurl(cmd) {
     '-S': false, '--show-error': false,
     '-k': false, '--insecure': false,
     '-L': false, '--location': false,
-    '--url': true
+    '-G': false, '--get': false,
+    '--compressed': false,
+    '--http2': false, '--http1.1': false,
+    '-A': true, '--user-agent': true,
+    '-e': true, '--referer': true,
+    '-b': true, '--cookie': true,
+    '-T': true, '--upload-file': true,
+    '--url': true,
+    '--retry': true,
+    '--connect-timeout': true,
+    '--max-time': true,
+    '--cacert': true
   };
   while (i < tokens.length) {
     const tok = tokens[i];
@@ -143,6 +180,15 @@ function validateCurl(cmd) {
   }
   if (!summary.url) {
     errors.push('No URL found in command');
+  } else {
+    try {
+      const urlObj = new URL(summary.url);
+      if (!urlObj.hostname) {
+        throw new Error('missing host');
+      }
+    } catch (e) {
+      errors.push('Invalid URL specified');
+    }
   }
   return { isValid: errors.length === 0, errors, summary };
 }
