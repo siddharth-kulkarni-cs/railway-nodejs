@@ -284,4 +284,107 @@ document.getElementById('nowTimestampBtn')?.addEventListener('click', () => {
   document.getElementById('timestampInput').value = now.toString();
   const date = new Date(now);
   showTimestampResult(true, buildTimestampHTML(date));
-}); 
+});
+
+// -----------------------------
+// JWT Debugger
+// -----------------------------
+function decodeBase64UrlForJwt(b64url) {
+  b64url = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = b64url.length % 4;
+  if (padding) {
+    b64url += '===='.slice(padding);
+  }
+  try {
+    // This trick handles UTF-8 characters correctly.
+    return decodeURIComponent(escape(window.atob(b64url)));
+  } catch (err) {
+    console.error('Failed to decode Base64Url', err);
+    throw new Error('Invalid Base64Url string');
+  }
+}
+
+function displayJwtResult(result) {
+  const container = document.getElementById('jwtResult');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (result.error) {
+    container.innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${result.error}</div>`;
+    return;
+  }
+
+  const { header, payload, signature } = result;
+
+  // Use <pre> and <code> for monospaced font and code-like appearance.
+  // Using JSON.stringify with spacing for pretty printing.
+  container.innerHTML = `
+    <div class="alert alert-success"><strong>JWT decoded successfully!</strong></div>
+    <h5 class="mt-3">Header</h5>
+    <pre class="bg-light p-3 rounded"><code>${JSON.stringify(header, null, 2)}</code></pre>
+    <h5>Payload</h5>
+    <pre class="bg-light p-3 rounded"><code>${JSON.stringify(payload, null, 2)}</code></pre>
+    <h5>Signature</h5>
+    <pre class="bg-light p-3 rounded text-break"><code>${signature}</code></pre>
+  `;
+
+  // Check for 'exp', 'iat', 'nbf' claims and display human-readable dates
+  const addClaimTimeInfo = (claim, label) => {
+    if (payload[claim]) {
+      const date = new Date(payload[claim] * 1000);
+      const isPast = date < new Date();
+      
+      let message = `<strong>${label}:</strong> ${date.toLocaleString()}`;
+      if (claim === 'exp') {
+        message = `<strong>Token ${isPast ? 'expired' : 'expires'} on:</strong> ${date.toLocaleString()}`;
+      }
+
+      const el = document.createElement('div');
+      el.className = `alert ${isPast && claim === 'exp' ? 'alert-warning' : 'alert-info'} mt-2`;
+      el.innerHTML = message;
+      
+      const payloadPreContainer = container.querySelector('h5:nth-of-type(2)').nextElementSibling;
+      if (payloadPreContainer) {
+          // insert after the payload pre, but before the signature heading
+          payloadPreContainer.parentNode.insertBefore(el, payloadPreContainer.nextElementSibling.previousElementSibling.nextElementSibling);
+      }
+    }
+  };
+  
+  // Display expiry, issued at, and not before times.
+  // Show expiry last so it's most prominent.
+  addClaimTimeInfo('nbf', 'Not Before (nbf)');
+  addClaimTimeInfo('iat', 'Issued At (iat)');
+  addClaimTimeInfo('exp', 'Expires (exp)');
+}
+
+function handleDecodeJwt() {
+  const token = document.getElementById('jwtInput').value.trim();
+  if (!token) {
+    // Don't show an error for empty input, just clear results.
+    document.getElementById('jwtResult').innerHTML = '';
+    return;
+  }
+
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    displayJwtResult({ error: 'Invalid JWT structure. A JWT must have three parts separated by dots.' });
+    return;
+  }
+
+  const [headerB64, payloadB64, signature] = parts;
+
+  try {
+    const headerJson = decodeBase64UrlForJwt(headerB64);
+    const payloadJson = decodeBase64UrlForJwt(payloadB64);
+
+    const header = JSON.parse(headerJson);
+    const payload = JSON.parse(payloadJson);
+
+    displayJwtResult({ header, payload, signature });
+  } catch (e) {
+    displayJwtResult({ error: `Failed to decode or parse JWT. Make sure it's a valid token. Error: ${e.message}` });
+  }
+}
+
+document.getElementById('decodeJwtBtn')?.addEventListener('click', handleDecodeJwt); 

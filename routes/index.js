@@ -273,8 +273,12 @@ router.get('/dev-tools', (req, res) => {
   res.sendFile(path.join(__dirname, '../views/dev-tools.html'));
 });
 
-router.get('/firebase-data', async (req, res) => {
+router.get('/data-analysis', async (req, res) => {
   try {
+    if(!process.env.FIREBASE_SERVICE_ACCOUNT_KEY){
+      res.status(404).send()
+      return
+    }
     const data = await getSampleData();
     res.status(200).json(data);
   } catch (error) {

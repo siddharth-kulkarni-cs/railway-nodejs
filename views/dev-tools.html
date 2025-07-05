@@ -48,6 +48,7 @@
         <a class="nav-link btn-outline-primary" href="#base64">Base64</a>
         <a class="nav-link btn-outline-primary" href="#curl-validator">cURL&nbsp;Validator</a>
         <a class="nav-link btn-outline-primary" href="#timestamp">Timestamp</a>
+        <a class="nav-link btn-outline-primary" href="#jwt-debugger">JWT Debugger</a>
       </nav>
 
       <h1 id="base64" class="mb-4 text-center" style="color: var(--primary-color);">Base64 Encoder / Decoder</h1>
@@ -91,6 +92,17 @@
           <button id="nowTimestampBtn" class="btn btn-secondary">Now ⏱️</button>
         </div>
         <div id="timestampResult"></div>
+      </div>
+
+      <!-- JWT Debugger Card -->
+      <h2 id="jwt-debugger" class="mt-5 mb-4 text-center" style="color: var(--primary-color);">JWT Debugger</h2>
+      <div class="tool-card">
+        <div class="form-group">
+          <label for="jwtInput">JWT Token</label>
+          <textarea id="jwtInput" class="form-control" rows="5" placeholder="Paste your JWT here... e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"></textarea>
+        </div>
+        <button id="decodeJwtBtn" class="btn btn-primary mb-3">Decode 🔎</button>
+        <div id="jwtResult"></div>
       </div>
     </main>
 
