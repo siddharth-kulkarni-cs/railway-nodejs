@@ -5,6 +5,7 @@ const { contentstackRedirectFragment, dynamicWordFragement, inputTextFragment } 
 const { generateContent, generateJoke } = require('../services/gen-ai');
 const { getCompletionForWrongWord, getJokeFromGroq } = require('../services/groq-ai-client');
 const mixpanel = require('../services/mixpanel');
+const { getSampleData } = require('../services/firebase.service');
 
 const api_key = process.env.GEMINI_API_KEY;
 // Add a simple in-memory cache
@@ -270,6 +271,15 @@ router.get('/joke', async (req, res) => {
 
 router.get('/dev-tools', (req, res) => {
   res.sendFile(path.join(__dirname, '../views/dev-tools.html'));
+});
+
+router.get('/firebase-data', async (req, res) => {
+  try {
+    const data = await getSampleData();
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;

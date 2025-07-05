@@ -1382,7 +1382,67 @@
             </div>
           `;
         }
+
+        // Joke Generator listener setup
+        const jokeForm = document.getElementById('jokeForm');
+        if (jokeForm) {
+          jokeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const topicInput = document.getElementById('jokeTopic');
+            const topic = topicInput ? topicInput.value.trim() : '';
+            if (topic) {
+              fetchJoke(topic);
+            }
+          });
+        }
+    }); // This closes the main 'DOMContentLoaded' listener
+
+    async function fetchJoke(topic) {
+      const loadingDiv = document.getElementById('jokeLoading');
+      const resultDiv = document.getElementById('jokeResult');
+      const jokeContent = document.getElementById('jokeContent');
+      const getJokeBtn = document.getElementById('getJokeBtn');
+
+      if (loadingDiv) loadingDiv.style.display = 'block';
+      if (resultDiv) resultDiv.style.display = 'none';
+      if (getJokeBtn) getJokeBtn.disabled = true;
+
+      try {
+        const response = await fetch(`/joke?topic=${encodeURIComponent(topic)}`);
+        if (!response.ok) {
+          throw new Error(`API returned status ${response.status}`);
+        }
+        const jokeText = await response.text();
+        if (jokeContent) jokeContent.textContent = jokeText;
+        if (resultDiv) resultDiv.style.display = 'block';
+
+        if(window.trackEvent) {
+            window.trackEvent('Joke Generated', {
+                topic: topic,
+                joke_length: jokeText.length,
+                success: true
+            });
+        }
+
+      } catch (error) {
+        console.error('Error fetching joke:', error);
+        if (jokeContent) {
+          jokeContent.innerHTML = `<div class="alert alert-danger">Oops! Our comedian has stage fright. Please try again.</div>`;
+        }
+        if (resultDiv) resultDiv.style.display = 'block';
         
-      </script>
-  </body>
+        if(window.trackEvent) {
+            window.trackEvent('Joke Generation Failed', {
+                topic: topic,
+                error: error.message,
+                success: false
+            });
+        }
+      } finally {
+        if (loadingDiv) loadingDiv.style.display = 'none';
+        if (getJokeBtn) getJokeBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
 </html>
