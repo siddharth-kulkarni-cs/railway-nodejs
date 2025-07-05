@@ -744,6 +744,100 @@ async function extractFileMetadata(file) {
     return await extractEnhancedFileMetadata(file);
 }
 
+/**
+ * Populates the UI with enhanced file metadata
+ * @param {Object} metadata - The enhanced metadata object
+ */
+function populateEnhancedMetadata(metadata) {
+    const resultDiv = document.getElementById('enhancedMetadataResult');
+    if (!resultDiv) {
+        console.error('Result container not found');
+        return;
+    }
+    
+    let html = '<div class="row">';
+    
+    // Basic Information Card
+    html += `
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">Basic Information</div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><strong>Name:</strong> ${metadata.name}</li>
+                        <li class="list-group-item"><strong>Size:</strong> ${metadata.sizeFormatted}</li>
+                        <li class="list-group-item"><strong>Type:</strong> ${metadata.type}</li>
+                        <li class="list-group-item"><strong>Last Modified:</strong> ${metadata.lastModified.toLocaleString()}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // File Signature Card
+    if (metadata.signature) {
+        html += `
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">File Signature Analysis</div>
+                    <div class="card-body">
+                        <p><strong>Detected Type:</strong> ${metadata.signature.description}</p>
+                        <p><strong>Confidence:</strong> ${metadata.signature.confidence}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Image-specific Card
+    if (metadata.image) {
+        html += `
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">Image Analysis</div>
+                    <div class="card-body">
+                        <p><strong>Dimensions:</strong> ${metadata.image.dimensions}</p>
+                        ${metadata.image.exif ? `<p><strong>EXIF Data:</strong> ${JSON.stringify(metadata.image.exif)}</p>` : ''}
+                        ${metadata.image.colors ? `<p><strong>Dominant Colors:</strong> ${metadata.image.colors.dominantColors.map(c => c.color).join(', ')}</p>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Content Analysis Card
+    if (metadata.contentAnalysis) {
+        html += `
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">Content Analysis</div>
+                    <div class="card-body">
+                        <p><strong>Is Binary:</strong> ${metadata.contentAnalysis.isBinary}</p>
+                        <p><strong>Entropy:</strong> ${metadata.contentAnalysis.entropy.toFixed(4)}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Binary Analysis Card
+    if (metadata.binary) {
+        html += `
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">Binary Analysis</div>
+                    <div class="card-body">
+                        <p><strong>Null Bytes:</strong> ${metadata.binary.nullBytePercentage}%</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    resultDiv.innerHTML = html;
+}
+
 // Export for module usage
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
