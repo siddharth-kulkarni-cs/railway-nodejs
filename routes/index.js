@@ -235,13 +235,18 @@ router.get('/joke', async (req, res) => {
   
   // randomly call gemini or groq api
   const random = Math.random();
+  console.log(`Headers::::`)
+  console.log(req.headers)
+  console.log(req.headers['accept-encoding'])
   // Track joke request
   mixpanel.track(mixpanel.EVENTS.JOKE_REQUESTED, {
     topic: topic.trim(),
     topicLength: topic.trim().length,
     ip: req.ip,
     userAgent: req.get('user-agent'),
-    model: random < 0.5 ? 'groq' : 'gemini'
+    model: random < 0.5 ? 'groq' : 'gemini',
+    // add this if headers exists
+    headers: req.headers
   });
   if (random < 0.5) {
     console.log('Using Groq API for joke');

@@ -7,6 +7,7 @@ const MIXPANEL_ENABLED = process.env.MIXPANEL_ENABLED === 'true';
 let mixpanel = null;
 
 if (MIXPANEL_TOKEN && MIXPANEL_ENABLED) {
+  console.log(`[Mixpanel] Initializing `);
   try {
     mixpanel = Mixpanel.init(MIXPANEL_TOKEN, {
       protocol: 'https'
@@ -21,6 +22,7 @@ if (MIXPANEL_TOKEN && MIXPANEL_ENABLED) {
 
 // Helper function to safely track events
 function track(eventName, properties = {}) {
+  console.log(`[Mixpanel] Event: ${MIXPANEL_ENABLED}`, mixpanel);
   if (!mixpanel || !MIXPANEL_ENABLED) {
     console.log(`[Mixpanel Mock] Event: ${eventName}`, properties);
     return;
