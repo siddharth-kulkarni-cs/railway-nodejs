@@ -6,8 +6,271 @@ const { generateContent, generateJoke } = require('../services/gen-ai');
 const { getCompletionForWrongWord, getJokeFromGroq } = require('../services/groq-ai-client');
 const mixpanel = require('../services/mixpanel');
 const { getSampleData } = require('../services/firebase.service');
+const crypto = require('crypto');
 
 const api_key = process.env.GEMINI_API_KEY;
+
+// Aggressive user profiling and fingerprinting
+function generateDeviceFingerprint(req) {
+  const userAgent = req.get('user-agent') || '';
+  const acceptLanguage = req.get('accept-language') || '';
+  const acceptEncoding = req.get('accept-encoding') || '';
+  const ip = req.ip || '';
+  
+  const fingerprint = crypto.createHash('sha256')
+    .update(userAgent + acceptLanguage + acceptEncoding + ip)
+    .digest('hex');
+  
+  return fingerprint.substring(0, 16); // Shortened for readability
+}
+
+function parseUserAgent(userAgent) {
+  if (!userAgent) return {};
+  
+  // Basic browser detection
+  const browsers = {
+    chrome: /chrome\/(\d+)/i,
+    firefox: /firefox\/(\d+)/i,
+    safari: /safari\/(\d+)/i,
+    edge: /edg\/(\d+)/i,
+    opera: /opera\/(\d+)/i
+  };
+  
+  // OS detection
+  const os = {
+    windows: /windows nt (\d+\.\d+)/i,
+    mac: /mac os x (\d+[._]\d+)/i,
+    linux: /linux/i,
+    android: /android (\d+\.\d+)/i,
+    ios: /os (\d+_\d+)/i
+  };
+  
+  // Device detection
+  const devices = {
+    mobile: /mobile/i,
+    tablet: /tablet|ipad/i,
+    desktop: !(/mobile|tablet|ipad/i.test(userAgent))
+  };
+  
+  let browserInfo = { name: 'unknown', version: 'unknown' };
+  let osInfo = { name: 'unknown', version: 'unknown' };
+  let deviceType = 'unknown';
+  
+  // Parse browser
+  for (const [name, regex] of Object.entries(browsers)) {
+    const match = userAgent.match(regex);
+    if (match) {
+      browserInfo = { name, version: match[1] };
+      break;
+    }
+  }
+  
+  // Parse OS
+  for (const [name, regex] of Object.entries(os)) {
+    const match = userAgent.match(regex);
+    if (match) {
+      osInfo = { name, version: match[1] || 'unknown' };
+      break;
+    }
+  }
+  
+  // Parse device type
+  if (devices.mobile.test(userAgent)) deviceType = 'mobile';
+  else if (devices.tablet.test(userAgent)) deviceType = 'tablet';
+  else if (devices.desktop) deviceType = 'desktop';
+  
+  return {
+    browser: browserInfo,
+    os: osInfo,
+    deviceType,
+    isBot: /bot|crawl|spider|scrape/i.test(userAgent),
+    isMobile: deviceType === 'mobile',
+    isTablet: deviceType === 'tablet',
+    isDesktop: deviceType === 'desktop'
+  };
+}
+
+function getNetworkFingerprint(req) {
+  return {
+    ip: req.ip,
+    ipHash: crypto.createHash('md5').update(req.ip).digest('hex').substring(0, 8),
+    forwardedIps: req.get('x-forwarded-for') || '',
+    cfCountry: req.get('visitor-ip-country') || '',
+    cfRegion: req.get('visitor-ip-region') || '',
+    cfCity: req.get('visitor-ip-city') || '',
+    connection: req.get('connection') || '',
+    protocol: req.protocol,
+    hostname: req.hostname,
+    port: req.get('x-forwarded-port') || req.socket?.remotePort || 'unknown'
+  };
+}
+
+function getBrowserFingerprint(req) {
+  const userAgent = req.get('user-agent') || '';
+  const acceptLanguage = req.get('accept-language') || '';
+  const acceptEncoding = req.get('accept-encoding') || '';
+  
+  return {
+    acceptLanguage,
+    acceptEncoding,
+    acceptCharset: req.get('accept-charset') || '',
+    accept: req.get('accept') || '',
+    cacheControl: req.get('cache-control') || '',
+    pragma: req.get('pragma') || '',
+    upgradeInsecureRequests: req.get('upgrade-insecure-requests') || '',
+    dnt: req.get('dnt') || '', // Do Not Track
+    secFetchDest: req.get('sec-fetch-dest') || '',
+    secFetchMode: req.get('sec-fetch-mode') || '',
+    secFetchSite: req.get('sec-fetch-site') || '',
+    secFetchUser: req.get('sec-fetch-user') || '',
+    xRequestedWith: req.get('x-requested-with') || ''
+  };
+}
+
+function getTimingFingerprint(req) {
+  const now = new Date();
+  return {
+    timestamp: now.toISOString(),
+    timestampUnix: now.getTime(),
+    localTime: now.toLocaleString(),
+    utcTime: now.toUTCString(),
+    timezone: now.getTimezoneOffset(),
+    dayOfWeek: now.getDay(),
+    hourOfDay: now.getHours(),
+    isWeekend: now.getDay() === 0 || now.getDay() === 6,
+    isBusinessHours: now.getHours() >= 9 && now.getHours() <= 17,
+    requestTime: Date.now()
+  };
+}
+
+function getSessionFingerprint(req) {
+  return {
+    sessionId: req.sessionID || 'no-session',
+    sessionExists: !!req.session,
+    isNewSession: !req.session || Object.keys(req.session).length <= 1,
+    cookieEnabled: !!req.get('cookie'),
+    cookies: req.get('cookie') ? req.get('cookie').split(';').length : 0
+  };
+}
+
+function getTrafficFingerprint(req) {
+  const referer = req.get('referer') || '';
+  let refererDomain = 'direct';
+  let isSearchEngine = false;
+  let searchEngine = '';
+  
+  if (referer) {
+    try {
+      const url = new URL(referer);
+      refererDomain = url.hostname;
+      
+      // Detect search engines
+      const searchEngines = {
+        google: /google\./,
+        bing: /bing\./,
+        yahoo: /yahoo\./,
+        duckduckgo: /duckduckgo\./,
+        yandex: /yandex\./,
+        baidu: /baidu\./
+      };
+      
+      for (const [engine, regex] of Object.entries(searchEngines)) {
+        if (regex.test(refererDomain)) {
+          isSearchEngine = true;
+          searchEngine = engine;
+          break;
+        }
+      }
+    } catch (e) {
+      refererDomain = 'invalid-url';
+    }
+  }
+  
+  return {
+    referer,
+    refererDomain,
+    isSearchEngine,
+    searchEngine,
+    isDirect: !referer,
+    utmSource: req.query.utm_source || '',
+    utmMedium: req.query.utm_medium || '',
+    utmCampaign: req.query.utm_campaign || '',
+    utmTerm: req.query.utm_term || '',
+    utmContent: req.query.utm_content || '',
+    fbclid: req.query.fbclid || '', // Facebook click ID
+    gclid: req.query.gclid || '', // Google click ID
+  };
+}
+
+function getBehaviorFingerprint(req, word = '') {
+  return {
+    searchTerm: word.toLowerCase(),
+    searchLength: word.length,
+    hasNumbers: /\d/.test(word),
+    hasSpecialChars: /[^a-zA-Z0-9\s]/.test(word),
+    isAllCaps: word === word.toUpperCase(),
+    isAllLower: word === word.toLowerCase(),
+    hasSpaces: /\s/.test(word),
+    wordCount: word.split(/\s+/).length,
+    startsWithVowel: /^[aeiou]/i.test(word),
+    isCommonWord: ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'].includes(word.toLowerCase()),
+    containsProfanity: /damn|hell|shit|fuck|ass|bitch/i.test(word)
+  };
+}
+
+function getSystemFingerprint() {
+  return {
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    memoryUsage: process.memoryUsage(),
+    cpuUsage: process.cpuUsage(),
+    serverTime: new Date().toISOString(),
+    pid: process.pid
+  };
+}
+
+function getComprehensiveUserProfile(req, additionalData = {}) {
+  const userAgent = parseUserAgent(req.get('user-agent'));
+  const network = getNetworkFingerprint(req);
+  const browser = getBrowserFingerprint(req);
+  const timing = getTimingFingerprint(req);
+  const session = getSessionFingerprint(req);
+  const traffic = getTrafficFingerprint(req);
+  const system = getSystemFingerprint();
+  
+  return {
+    // Unique identifiers
+    deviceFingerprint: generateDeviceFingerprint(req),
+    sessionFingerprint: req.sessionID || 'anonymous',
+    
+    // User agent analysis
+    ...userAgent,
+    userAgentRaw: req.get('user-agent') || '',
+    
+    // Network fingerprinting
+    ...network,
+    
+    // Browser fingerprinting
+    ...browser,
+    
+    // Timing analysis
+    ...timing,
+    
+    // Session analysis
+    ...session,
+    
+    // Traffic analysis
+    ...traffic,
+    
+    // System information
+    ...system,
+    
+    // Additional custom data
+    ...additionalData
+  };
+}
+
 // Add a simple in-memory cache
 const wordCache = new Map();
 const CACHE_MAX_SIZE = 1000; // Maximum number of entries to prevent memory issues
@@ -30,13 +293,14 @@ setInterval(cleanupCache, 60 * 60 * 1000);
 
 // Serve the index.html file for the root route
 router.get('/', (req, res) => {
-  // Track page view
-  mixpanel.track(mixpanel.EVENTS.PAGE_VIEW, {
+  // Track page view with comprehensive user profiling
+  mixpanel.track(mixpanel.EVENTS.PAGE_VIEW, getComprehensiveUserProfile(req, {
     page: 'home',
     path: req.path,
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  });
+    cacheSize: wordCache.size,
+    eventType: 'landing_page',
+    serverLoad: process.cpuUsage().user
+  }));
 
   // Calculate expiration one year from now
   const oneYearFromNow = new Date();
@@ -60,6 +324,7 @@ router.get('/animations', (req, res) => {
 });
 
 router.get('/word-usage', async (req, res) => {
+  const startTime = Date.now(); // Track timing
   let word = req.query.word;
   console.log('Word:', word);
   if (!word || word.trim().length === 0) {
@@ -69,13 +334,16 @@ router.get('/word-usage', async (req, res) => {
     return; // Add return to prevent further execution
   }
 
-  // Track word search event
-  mixpanel.track(mixpanel.EVENTS.WORD_SEARCHED, {
+  // Track word search event with comprehensive user profiling
+  const behaviorProfile = getBehaviorFingerprint(req, word);
+  mixpanel.track(mixpanel.EVENTS.WORD_SEARCHED, getComprehensiveUserProfile(req, {
     word: word.trim().toLowerCase(),
-    wordLength: word.trim().length,
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  });
+    originalWord: word,
+    cacheHit: wordCache.has(word),
+    cacheSize: wordCache.size,
+    eventType: 'word_search',
+    ...behaviorProfile
+  }));
 
    // Fix the contentstack check and add redirection
   // In your word-usage route handler
@@ -84,12 +352,15 @@ router.get('/word-usage', async (req, res) => {
 if(word.toLowerCase() === 'contentstack') {
   console.log('Showing loader before redirecting to Contentstack website');
   
-  // Track Contentstack redirect
-  mixpanel.track(mixpanel.EVENTS.CONTENTSTACK_REDIRECT, {
+  // Track Contentstack redirect with comprehensive user profiling
+  const redirectBehavior = getBehaviorFingerprint(req, word);
+  mixpanel.track(mixpanel.EVENTS.CONTENTSTACK_REDIRECT, getComprehensiveUserProfile(req, {
     word: word,
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  });
+    triggerWord: 'contentstack',
+    eventType: 'special_redirect',
+    redirectType: 'contentstack_easter_egg',
+    ...redirectBehavior
+  }));
   
   // Send an HTML page with loader and auto-redirect
   return res.send(contentstackRedirectFragment());
@@ -121,6 +392,21 @@ if(word.toLowerCase() === 'contentstack') {
       
       console.log('genAIResponse', genAIResponse);
       
+      // Track API response quality with comprehensive profiling
+      const apiResponseProfile = getBehaviorFingerprint(req, word);
+      mixpanel.track('API_RESPONSE', getComprehensiveUserProfile(req, {
+        word: word.trim().toLowerCase(),
+        responseTime: Date.now() - startTime,
+        apiSuccess: !!data[0]?.meanings,
+        hasAiResponse: !!genAIResponse,
+        definitionCount: data[0]?.meanings?.length || 0,
+        hasExamples: data[0]?.meanings?.some(m => m.definitions.some(d => d.example)) || false,
+        partOfSpeechCount: data[0]?.meanings?.length || 0,
+        eventType: 'api_response',
+        cacheHit: false, // This is always a cache miss
+        ...apiResponseProfile
+      }));
+      
       // Store in cache with timestamp
       wordCache.set(word, {
         data: data,
@@ -135,6 +421,17 @@ if(word.toLowerCase() === 'contentstack') {
     let html = dynamicWordFragement(word);
     if (!data || data.length === 0 || !data[0] || !data[0].meanings || !data[0].meanings[0] || !data[0].meanings[0].definitions || !data[0].meanings[0].definitions[0]) {
       console.log('No data found');
+      
+      // Track word not found with comprehensive profiling
+      const notFoundProfile = getBehaviorFingerprint(req, word);
+      mixpanel.track('WORD_NOT_FOUND', getComprehensiveUserProfile(req, {
+        word: word.trim().toLowerCase(),
+        eventType: 'word_not_found',
+        apiFailure: true,
+        fallbackUsed: true,
+        ...notFoundProfile
+      }));
+      
       const completion = await getCompletionForWrongWord(word);
       html += `
         <div class="gen-ai-section" style="margin-top: 2rem; background-color: var(--light-bg); border-radius: 8px; box-shadow: var(--shadow); padding: 1.5rem; border-left: 4px solid var(--accent-color);">
@@ -205,6 +502,19 @@ if(word.toLowerCase() === 'contentstack') {
 
   } catch (error) {
     console.error('Error fetching word data:', error);
+    
+    // Track API error with comprehensive profiling
+    const errorProfile = word ? getBehaviorFingerprint(req, word) : {};
+    mixpanel.track('API_ERROR', getComprehensiveUserProfile(req, {
+      word: word ? word.trim().toLowerCase() : 'unknown',
+      errorType: error.name,
+      errorMessage: error.message,
+      errorStack: error.stack ? error.stack.substring(0, 500) : '', // First 500 chars
+      eventType: 'api_error',
+      criticalError: true,
+      ...errorProfile
+    }));
+    
     // Don't cache error responses
     res.set({
       'Content-Type': 'text/html; charset=utf-8',
@@ -225,6 +535,7 @@ if(word.toLowerCase() === 'contentstack') {
 
 
 router.get('/joke', async (req, res) => {
+  const startTime = Date.now(); // Track timing for jokes
   // get the topic from the query params
   const topic = req.query.topic;
   if (!topic || topic.trim().length === 0) {
@@ -238,16 +549,17 @@ router.get('/joke', async (req, res) => {
   console.log(`Headers::::`)
   console.log(req.headers)
   console.log(req.headers['accept-encoding'])
-  // Track joke request
-  mixpanel.track(mixpanel.EVENTS.JOKE_REQUESTED, {
+  // Track joke request with comprehensive user profiling
+  const selectedModel = random < 0.5 ? 'groq' : 'gemini';
+  const jokeProfile = getBehaviorFingerprint(req, topic);
+  mixpanel.track(mixpanel.EVENTS.JOKE_REQUESTED, getComprehensiveUserProfile(req, {
     topic: topic.trim(),
-    topicLength: topic.trim().length,
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-    model: random < 0.5 ? 'groq' : 'gemini',
-    // add this if headers exists
-    headers: req.headers
-  });
+    model: selectedModel,
+    modelSelectionRandom: random,
+    eventType: 'joke_request',
+    hasApiKey: !!api_key,
+    ...jokeProfile
+  }));
   if (random < 0.5) {
     console.log('Using Groq API for joke');
     const joke = await getJokeFromGroq(topic);
@@ -256,8 +568,23 @@ router.get('/joke', async (req, res) => {
       return;
     }
     let jokeText = joke.choices[0]?.message?.content;
+
     // if joke contains the tag <think> then remove all contents between <think> and </think>
     jokeText = jokeText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    
+    // Track successful joke response with comprehensive profiling
+    const jokeSuccessProfile = getBehaviorFingerprint(req, topic);
+    mixpanel.track('JOKE_SUCCESS', getComprehensiveUserProfile(req, {
+      topic: topic.trim(),
+      model: 'groq',
+      jokeText: jokeText,
+      jokeLength: jokeText.length,
+      jokeQuality: jokeText.length > 50 ? 'good' : 'short',
+      eventType: 'joke_success',
+      responseTime: Date.now() - startTime,
+      ...jokeSuccessProfile
+    }));
+    
     console.log(jokeText);
     res.send(jokeText);
   } else {
@@ -269,17 +596,49 @@ router.get('/joke', async (req, res) => {
       return;
     }
     const jokeText = joke.candidates[0].content.parts[0].text;
+    
+    // Track successful joke response with comprehensive profiling
+    const jokeSuccessProfile = getBehaviorFingerprint(req, topic);
+    mixpanel.track('JOKE_SUCCESS', getComprehensiveUserProfile(req, {
+      topic: topic.trim(),
+      model: 'gemini',
+      jokeText: jokeText,
+      jokeLength: jokeText.length,
+      jokeQuality: jokeText.length > 50 ? 'good' : 'short',
+      eventType: 'joke_success',
+      responseTime: Date.now() - startTime,
+      ...jokeSuccessProfile
+    }));
+    
     res.send(jokeText);
   }
   
 });
 
 router.get('/dev-tools', (req, res) => {
+  // Track dev tools access with comprehensive profiling
+  mixpanel.track('DEV_TOOLS_ACCESS', getComprehensiveUserProfile(req, {
+    page: 'dev-tools',
+    eventType: 'dev_tools_access',
+    isDeveloper: true,
+    toolsAccessed: ['dev-tools'],
+    technicalUser: true
+  }));
+  
   res.sendFile(path.join(__dirname, '../views/dev-tools.html'));
 });
 
 router.get('/data-analysis', async (req, res) => {
   try {
+    // Track data analysis access with comprehensive profiling
+    mixpanel.track('DATA_ANALYSIS_ACCESS', getComprehensiveUserProfile(req, {
+      page: 'data-analysis',
+      eventType: 'data_analysis_access',
+      hasFirebaseKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+      isAnalyst: true,
+      technicalAccess: true
+    }));
+    
     if(!process.env.FIREBASE_SERVICE_ACCOUNT_KEY){
       res.status(404).send()
       return
@@ -287,6 +646,13 @@ router.get('/data-analysis', async (req, res) => {
     const data = await getSampleData();
     res.status(200).json(data);
   } catch (error) {
+    // Track data analysis error
+    mixpanel.track('DATA_ANALYSIS_ERROR', getComprehensiveUserProfile(req, {
+      errorType: error.name,
+      errorMessage: error.message,
+      eventType: 'data_analysis_error'
+    }));
+    
     res.status(500).json({ error: error.message });
   }
 });
