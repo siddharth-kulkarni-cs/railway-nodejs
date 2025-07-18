@@ -50,6 +50,7 @@
         <a class="nav-link btn-outline-primary" href="#timestamp">Timestamp</a>
         <a class="nav-link btn-outline-primary" href="#jwt-debugger">JWT Debugger</a>
         <a class="nav-link btn-outline-primary" href="#password-strength">Password Strength</a>
+        <a class="nav-link btn-outline-primary" href="#random-generator">Random Generator</a>
       </nav>
 
       <details id="base64" class="mb-5" open>
@@ -123,6 +124,26 @@
           </div>
           <button id="analyzePasswordBtn" class="btn btn-primary mb-3">Analyze Strength 💪</button>
           <div id="passwordResult"></div>
+        </div>
+      </details>
+      <!-- True Random Number Generator -->
+      <details id="random-generator" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">True Random Number Generator</summary>
+        <div class="tool-card mt-3">
+          <div class="form-group">
+            <label for="minInput">Min</label>
+            <input type="number" id="minInput" class="form-control" value="1">
+          </div>
+          <div class="form-group">
+            <label for="maxInput">Max</label>
+            <input type="number" id="maxInput" class="form-control" value="100">
+          </div>
+          <div class="form-group">
+            <label for="countInput">Count</label> (max 100)
+            <input type="number" id="countInput" class="form-control" value="1" min="1">
+          </div>
+          <button id="generateRandomBtn" class="btn btn-primary mb-3">Generate 🎲</button>
+          <div id="randomResult"></div>
         </div>
       </details>
     </main>

@@ -698,3 +698,141 @@ document.getElementById('passwordInput')?.addEventListener('input', (e) => {
     const result = zxcvbn(password);
     displayPasswordResult(result, password);
 }); 
+// -----------------------------
+// True Random Number Generator
+// -----------------------------
+let randomDistChartInstance = null;
+
+function generateTrueRandom(min, max, count) {
+  const range = max - min + 1;
+  if (range <= 0) throw new Error('Max must be greater than min');
+  if (!Number.isSafeInteger(range)) throw new Error('Range too large for safe integer generation');
+
+  const results = [];
+  const maxRand = Math.floor(0xFFFFFFFF / range) * range;
+
+  for (let i = 0; i < count; i++) {
+    let rand;
+    do {
+      const buf = new Uint32Array(1);
+      crypto.getRandomValues(buf);
+      rand = buf[0];
+    } while (rand >= maxRand);
+    results.push(min + (rand % range));
+  }
+  return results;
+}
+
+function displayRandomResult(numbers, min, max) {
+  const container = document.getElementById('randomResult');
+  if (!container) return;
+
+  const count = numbers.length;
+  const range = max - min + 1;
+
+  // Sort numbers for display
+  const sortedNumbers = [...numbers].sort((a, b) => a - b);
+
+  // Dynamic binning
+  const BIN_THRESHOLD = 50;
+  let labels = [];
+  let data = [];
+  let expected = [];
+  if (range <= BIN_THRESHOLD) {
+    const freq = new Map();
+    for (let n of numbers) {
+      freq.set(n, (freq.get(n) || 0) + 1);
+    }
+    for (let i = min; i <= max; i++) {
+      labels.push(i.toString());
+      data.push(freq.get(i) || 0);
+    }
+    expected = new Array(labels.length).fill(count / labels.length);
+  } else {
+    const binCount = Math.max(5, Math.ceil(1 + Math.log2(count))); // Sturges' formula
+    const binSize = Math.ceil(range / binCount);
+    data = new Array(binCount).fill(0);
+    for (let n of numbers) {
+      const binIndex = Math.min(binCount - 1, Math.floor((n - min) / binSize));
+      data[binIndex]++;
+    }
+    for (let i = 0; i < binCount; i++) {
+      const binMin = min + i * binSize;
+      const binMax = Math.min(binMin + binSize - 1, max);
+      labels.push(`${binMin}-${binMax}`);
+    }
+    expected = new Array(binCount).fill(count / binCount);
+  }
+
+  container.innerHTML = `
+    <div class="alert alert-success"><strong>Generated Numbers (sorted):</strong></div>
+    <pre class="bg-light p-3 rounded overflow-auto" style="max-height: 150px;"><code>${sortedNumbers.join(', ')}</code></pre>
+    <h5 class="mt-3">Distribution Histogram</h5>
+    <p class="text-muted mb-2">Blue bars show observed frequencies. Red line shows expected uniform distribution.</p>
+    <canvas id="randomDistChart" height="250"></canvas>
+  `;
+
+  const ctx = document.getElementById('randomDistChart').getContext('2d');
+  if (randomDistChartInstance) randomDistChartInstance.destroy();
+  randomDistChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Observed Frequency',
+          data: data,
+          backgroundColor: 'rgba(0, 123, 255, 0.6)',
+          borderColor: '#007bff',
+          borderWidth: 1
+        },
+        {
+          type: 'line',
+          label: 'Expected Uniform',
+          data: expected,
+          borderColor: '#dc3545',
+          borderWidth: 2,
+          fill: false,
+          pointRadius: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Frequency' },
+          suggestedMax: Math.max(...data) * 1.1
+        },
+        x: {
+          title: { display: true, text: 'Value Range' }
+        }
+      },
+      plugins: {
+        legend: { position: 'top' }
+      }
+    }
+  });
+}
+
+document.getElementById('generateRandomBtn')?.addEventListener('click', () => {
+  try {
+    const min = parseInt(document.getElementById('minInput').value);
+    const max = parseInt(document.getElementById('maxInput').value);
+    const count = parseInt(document.getElementById('countInput').value);
+    if (isNaN(min) || isNaN(max) || isNaN(count) || count < 1) {
+      throw new Error('Invalid input values');
+    }
+    if (min >= max) {
+      throw new Error('Min must be less than max');
+    }
+    if (count > 100) {
+      throw new Error('Count exceeds maximum of 100');
+    }
+    const numbers = generateTrueRandom(min, max, count);
+    displayRandomResult(numbers, min, max);
+  } catch (e) {
+    document.getElementById('randomResult').innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${e.message}</div>`;
+  }
+}); 
