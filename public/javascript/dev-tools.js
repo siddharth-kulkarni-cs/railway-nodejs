@@ -731,7 +731,7 @@ function displayRandomResult(numbers, min, max) {
   const range = max - min + 1;
 
   // Sort numbers for display
-  const sortedNumbers = [...numbers].sort((a, b) => a - b);
+  // const sortedNumbers = [...numbers].sort((a, b) => a - b);
 
   // Dynamic binning
   const BIN_THRESHOLD = 50;
@@ -765,8 +765,8 @@ function displayRandomResult(numbers, min, max) {
   }
 
   container.innerHTML = `
-    <div class="alert alert-success"><strong>Generated Numbers (sorted):</strong></div>
-    <pre class="bg-light p-3 rounded overflow-auto" style="max-height: 150px;"><code>${sortedNumbers.join(', ')}</code></pre>
+    <div class="alert alert-success"><strong>Generated Numbers </strong></div>
+    <pre class="bg-light p-3 rounded overflow-auto" style="max-height: 150px;"><code>${numbers.join(', ')}</code></pre>
     <h5 class="mt-3">Distribution Histogram</h5>
     <p class="text-muted mb-2">Blue bars show observed frequencies. Red line shows expected uniform distribution.</p>
     <canvas id="randomDistChart" height="250"></canvas>
