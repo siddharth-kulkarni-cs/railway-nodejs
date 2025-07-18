@@ -51,6 +51,8 @@
         <a class="nav-link btn-outline-primary" href="#jwt-debugger">JWT Debugger</a>
         <a class="nav-link btn-outline-primary" href="#password-strength">Password Strength</a>
         <a class="nav-link btn-outline-primary" href="#random-generator">Random Generator</a>
+        <a class="nav-link btn-outline-primary" href="#ast-visualizer">JS AST Visualizer</a>
+        <a class="nav-link btn-outline-primary" href="#regex-tester">Regex Tester</a>
       </nav>
 
       <details id="base64" class="mb-5" open>
@@ -146,10 +148,42 @@
           <div id="randomResult"></div>
         </div>
       </details>
+      <!-- JavaScript AST Visualizer -->
+      <details id="ast-visualizer" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">JavaScript AST Visualizer</summary>
+        <div class="tool-card mt-3">
+          <p class="text-info mb-3">Parse and visualize the Abstract Syntax Tree of JavaScript code. Nerdy deep dive into code structure!</p>
+          <div class="form-group">
+            <label for="codeInput">JavaScript Code</label>
+            <textarea id="codeInput" class="form-control" rows="6" placeholder="Enter JS code..."></textarea>
+          </div>
+          <button id="visualizeAstBtn" class="btn btn-primary mb-3">Visualize AST 🌳</button>
+          <div id="astResult"></div>
+        </div>
+      </details>
+      <!-- Advanced Regex Tester -->
+      <details id="regex-tester" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">Advanced Regex Tester</summary>
+        <div class="tool-card mt-3">
+          <p class="text-info mb-3">Test regex patterns with visual matching, explanations, and edge case generator.</p>
+          <div class="form-group">
+            <label for="regexInput">Regex Pattern</label>
+            <input type="text" id="regexInput" class="form-control" placeholder="e.g. \d{3}-\d{2}-\d{4}">
+          </div>
+          <div class="form-group">
+            <label for="testString">Test String</label>
+            <textarea id="testString" class="form-control" rows="4" placeholder="Enter text to test..."></textarea>
+          </div>
+          <button id="testRegexBtn" class="btn btn-primary mb-3">Test Regex 🔍</button>
+          <div id="regexResult"></div>
+        </div>
+      </details>
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/acorn@8/dist/acorn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="/javascript/dev-tools.js"></script>
   </body>
 </html> 

@@ -836,3 +836,131 @@ document.getElementById('generateRandomBtn')?.addEventListener('click', () => {
     document.getElementById('randomResult').innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${e.message}</div>`;
   }
 }); 
+// -----------------------------
+// JavaScript AST Visualizer
+// -----------------------------
+function buildAstTree(node, name = 'root') {
+  const treeNode = { name, children: [] };
+  if (node.type) treeNode.name = `${name} (${node.type})`;
+  for (let key in node) {
+    if (node[key] && typeof node[key] === 'object' && !Array.isArray(node[key])) {
+      treeNode.children.push(buildAstTree(node[key], key));
+    } else if (Array.isArray(node[key])) {
+      node[key].forEach((child, i) => {
+        treeNode.children.push(buildAstTree(child, `${key}[${i}]`));
+      });
+    }
+  }
+  return treeNode;
+}
+
+function renderAstTree(treeData) {
+  const container = document.getElementById('astResult');
+  container.innerHTML = '';
+  requestAnimationFrame(() => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('id', 'astSvg');
+    svg.setAttribute('style', 'width: 100%; height: 800px;');
+    container.appendChild(svg);
+
+    const d3Svg = d3.select(svg);
+    const width = svg.clientWidth || 800;
+    const height = 800;
+    d3Svg.attr('viewBox', `0 0 ${width} ${height}`);
+
+    const g = d3Svg.append('g');
+
+    const zoom = d3.zoom()
+      .scaleExtent([0.5, 2])
+      .on('zoom', ({transform}) => g.attr('transform', transform));
+    d3Svg.call(zoom);
+
+    const root = d3.hierarchy(treeData);
+    const treeLayout = d3.tree().size([height - 80, width - 200]);
+    const treeDataLayout = treeLayout(root);
+
+    const links = g.selectAll('.link').data(treeDataLayout.links()).enter()
+      .append('line').classed('link', true)
+      .attr('x1', d => d.source.y + 40).attr('y1', d => d.source.x + 40)
+      .attr('x2', d => d.target.y + 40).attr('y2', d => d.target.x + 40)
+      .attr('stroke', '#999');
+
+    const nodes = g.selectAll('.node').data(treeDataLayout.descendants()).enter()
+      .append('g').classed('node', true)
+      .attr('transform', d => `translate(${d.y + 40}, ${d.x + 40})`);
+
+    nodes.append('circle').attr('r', 5).attr('fill', '#007bff');
+
+    nodes.append('text')
+      .text(d => d.data.name.length > 30 ? d.data.name.substring(0, 27) + '...' : d.data.name)
+      .attr('dy', 4).attr('dx', 10)
+      .attr('text-anchor', 'start')
+      .attr('fill', '#333').attr('font-size', '12px');
+  });
+}
+
+document.getElementById('visualizeAstBtn')?.addEventListener('click', () => {
+  const code = document.getElementById('codeInput').value;
+  try {
+    const ast = acorn.parse(code, { ecmaVersion: 2020 });
+    const tree = buildAstTree(ast);
+    renderAstTree(tree);
+  } catch (e) {
+    const msg = e.name === 'SyntaxError' ? `Parse Error: ${e.message}` : `Error: ${e.message}`;
+    document.getElementById('astResult').innerHTML = `&lt;div class=&quot;alert alert-danger&quot;&gt;${msg}&lt;/div&gt;`;
+  }
+});
+
+// -----------------------------
+// Advanced Regex Tester
+// -----------------------------
+const regexExplanations = {
+  '\d': 'Digit', '\w': 'Word character', '\s': 'Whitespace',
+  '^': 'Start of string', '$': 'End of string', '.': 'Any character'
+};
+
+function explainRegex(pattern) {
+  let explanation = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (regexExplanations[ch]) {
+      explanation += `${ch}: ${regexExplanations[ch]} `;
+    }
+  }
+  return explanation || 'No specific explanations available.';
+}
+
+function highlightMatches(text, matches) {
+  let highlighted = text;
+  matches.sort((a, b) => b.index - a.index);
+  matches.forEach(match => {
+    const start = match.index;
+    const end = start + match[0].length;
+    highlighted = highlighted.slice(0, start) + '<span class="bg-warning">' + highlighted.slice(start, end) + '</span>' + highlighted.slice(end);
+  });
+  return highlighted;
+}
+
+document.getElementById('testRegexBtn')?.addEventListener('click', () => {
+  const patternStr = document.getElementById('regexInput').value;
+  const testStr = document.getElementById('testString').value;
+  try {
+    const regex = new RegExp(patternStr, 'g');
+    const matches = [...testStr.matchAll(regex)];
+    const highlighted = highlightMatches(testStr, matches);
+    const explanation = explainRegex(patternStr);
+    document.getElementById('regexResult').innerHTML = `
+      <div class="alert alert-success"><strong>Matches Found:</strong> ${matches.length}</div>
+      <h5>Highlighted Text:</h5>
+      <pre class="bg-light p-3 rounded">${highlighted}</pre>
+      <h5>Explanation:</h5>
+      <p>${explanation}</p>
+      <h5>Match Details:</h5>
+      <ul class="list-group">
+        ${matches.map(m => `<li class="list-group-item">${m[0]} (at ${m.index})</li>`).join('')}
+      </ul>
+    `;
+  } catch (e) {
+    document.getElementById('regexResult').innerHTML = `<div class="alert alert-danger">Invalid Regex: ${e.message}</div>`;
+  }
+}); 
