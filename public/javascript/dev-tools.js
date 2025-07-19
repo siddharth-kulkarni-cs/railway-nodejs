@@ -1378,3 +1378,346 @@ document.addEventListener('DOMContentLoaded', () => {
     copyToClipboard(bulk, 'copyBulkBtn', 'Copy All 📋');
   });
 }); 
+
+// -----------------------------
+// Cryptographic Key Pair Generator
+// -----------------------------
+
+// Helper function to convert ArrayBuffer to Base64
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+// Helper function to convert ArrayBuffer to Hex
+function arrayBufferToHex(buffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('').toUpperCase();
+}
+
+// Convert CryptoKey to PEM format
+async function cryptoKeyToPEM(key, isPrivate = false) {
+  const exported = await crypto.subtle.exportKey(
+    isPrivate ? 'pkcs8' : 'spki',
+    key
+  );
+  
+  const base64 = arrayBufferToBase64(exported);
+  const keyType = isPrivate ? 'PRIVATE KEY' : 'PUBLIC KEY';
+  
+  // Format as PEM with line breaks every 64 characters
+  const formattedBase64 = base64.match(/.{1,64}/g).join('\n');
+  return `-----BEGIN ${keyType}-----\n${formattedBase64}\n-----END ${keyType}-----`;
+}
+
+// Convert CryptoKey to JWK format
+async function cryptoKeyToJWK(key) {
+  return await crypto.subtle.exportKey('jwk', key);
+}
+
+// Convert CryptoKey to Raw hex format
+async function cryptoKeyToRaw(key) {
+  try {
+    const exported = await crypto.subtle.exportKey('raw', key);
+    return arrayBufferToHex(exported);
+  } catch (error) {
+    // If raw export fails, fall back to SPKI/PKCS8
+    const isPrivate = key.type === 'private';
+    const exported = await crypto.subtle.exportKey(
+      isPrivate ? 'pkcs8' : 'spki',
+      key
+    );
+    return arrayBufferToHex(exported);
+  }
+}
+
+// Generate key pair based on algorithm and parameters
+async function generateCryptoKeyPair(algorithm, params) {
+  const keyGenParams = {
+    name: algorithm,
+    ...params
+  };
+
+  // Determine key usages based on algorithm
+  let keyUsages = [];
+  switch (algorithm) {
+    case 'RSA-PSS':
+      keyUsages = ['sign', 'verify'];
+      keyGenParams.hash = 'SHA-256';
+      break;
+    case 'RSA-OAEP':
+      keyUsages = ['encrypt', 'decrypt'];
+      keyGenParams.hash = 'SHA-256';
+      break;
+    case 'ECDSA':
+      keyUsages = ['sign', 'verify'];
+      keyGenParams.hash = 'SHA-256';
+      break;
+    case 'Ed25519':
+      keyUsages = ['sign', 'verify'];
+      break;
+    default:
+      throw new Error(`Unsupported algorithm: ${algorithm}`);
+  }
+
+  return await crypto.subtle.generateKey(keyGenParams, true, keyUsages);
+}
+
+// Analyze key pair and return details
+async function analyzeKeyPair(keyPair, algorithm, params) {
+  const privateKeyJWK = await cryptoKeyToJWK(keyPair.privateKey);
+  const publicKeyJWK = await cryptoKeyToJWK(keyPair.publicKey);
+  
+  const analysis = {
+    algorithm: algorithm,
+    keyType: keyPair.privateKey.type,
+    extractable: keyPair.privateKey.extractable,
+    usages: keyPair.privateKey.usages,
+    publicUsages: keyPair.publicKey.usages
+  };
+
+  // Add algorithm-specific details
+  switch (algorithm) {
+    case 'RSA-PSS':
+    case 'RSA-OAEP':
+      analysis.modulusLength = params.modulusLength;
+      analysis.publicExponent = new Uint8Array(params.publicExponent);
+      analysis.hashAlgorithm = 'SHA-256';
+      if (privateKeyJWK.n) {
+        // Calculate actual modulus length from JWK
+        const modulusBytes = atob(privateKeyJWK.n.replace(/-/g, '+').replace(/_/g, '/'));
+        analysis.actualModulusLength = modulusBytes.length * 8;
+      }
+      break;
+    case 'ECDSA':
+      analysis.namedCurve = params.namedCurve;
+      analysis.hashAlgorithm = 'SHA-256';
+      break;
+    case 'Ed25519':
+      analysis.curveType = 'Edwards25519';
+      analysis.keyLength = 256;
+      break;
+  }
+
+  return analysis;
+}
+
+// Format key pair output based on selected format
+async function formatKeyPair(keyPair, format) {
+  switch (format) {
+    case 'PEM':
+      return {
+        privateKey: await cryptoKeyToPEM(keyPair.privateKey, true),
+        publicKey: await cryptoKeyToPEM(keyPair.publicKey, false)
+      };
+    case 'JWK':
+      return {
+        privateKey: JSON.stringify(await cryptoKeyToJWK(keyPair.privateKey), null, 2),
+        publicKey: JSON.stringify(await cryptoKeyToJWK(keyPair.publicKey), null, 2)
+      };
+    case 'Raw':
+      return {
+        privateKey: await cryptoKeyToRaw(keyPair.privateKey),
+        publicKey: await cryptoKeyToRaw(keyPair.publicKey)
+      };
+    default:
+      throw new Error(`Unsupported format: ${format}`);
+  }
+}
+
+// Display key analysis
+function displayKeyAnalysis(analysis) {
+  const container = document.getElementById('keyAnalysis');
+  
+  let html = `
+    <div class="card">
+      <div class="card-body">
+        <table class="table table-sm">
+          <tr><th>Algorithm:</th><td><code>${analysis.algorithm}</code></td></tr>
+          <tr><th>Key Type:</th><td>${analysis.keyType}</td></tr>
+          <tr><th>Extractable:</th><td>${analysis.extractable ? '✅ Yes' : '❌ No'}</td></tr>
+          <tr><th>Private Key Usages:</th><td>${analysis.usages.join(', ')}</td></tr>
+          <tr><th>Public Key Usages:</th><td>${analysis.publicUsages.join(', ')}</td></tr>
+  `;
+
+  if (analysis.modulusLength) {
+    html += `
+          <tr><th>Modulus Length:</th><td>${analysis.modulusLength} bits</td></tr>
+          <tr><th>Hash Algorithm:</th><td>${analysis.hashAlgorithm}</td></tr>
+    `;
+  }
+
+  if (analysis.namedCurve) {
+    html += `
+          <tr><th>Named Curve:</th><td>${analysis.namedCurve}</td></tr>
+          <tr><th>Hash Algorithm:</th><td>${analysis.hashAlgorithm}</td></tr>
+    `;
+  }
+
+  if (analysis.curveType) {
+    html += `
+          <tr><th>Curve Type:</th><td>${analysis.curveType}</td></tr>
+          <tr><th>Key Length:</th><td>${analysis.keyLength} bits</td></tr>
+    `;
+  }
+
+  html += `
+        </table>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// Download key as file
+function downloadKey(content, filename) {
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Enhanced copy function for crypto keys
+function copyCryptoKey(text, buttonId, keyType) {
+  if (!text) return;
+  
+  navigator.clipboard.writeText(text).then(() => {
+    const button = document.getElementById(buttonId);
+    if (button) {
+      const original = button.textContent;
+      button.textContent = `Copied ${keyType}! ✅`;
+      button.classList.add('btn-success');
+      button.classList.remove('btn-outline-danger', 'btn-outline-info');
+      
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('btn-success');
+        button.classList.add(keyType === 'Private Key' ? 'btn-outline-danger' : 'btn-outline-info');
+      }, 1500);
+    }
+  });
+}
+
+  // -----------------------------
+  // Crypto Key Generator Event Listeners
+  // -----------------------------
+  
+  // Algorithm change handler
+  document.getElementById('cryptoAlgorithm')?.addEventListener('change', (e) => {
+    const algorithm = e.target.value;
+    const rsaKeySize = document.getElementById('rsaKeySize');
+    const ecdsaCurve = document.getElementById('ecdsaCurve');
+    
+    // Show/hide algorithm-specific options
+    if (algorithm.startsWith('RSA')) {
+      rsaKeySize.style.display = 'block';
+      ecdsaCurve.style.display = 'none';
+    } else if (algorithm === 'ECDSA') {
+      rsaKeySize.style.display = 'none';
+      ecdsaCurve.style.display = 'block';
+    } else {
+      rsaKeySize.style.display = 'none';
+      ecdsaCurve.style.display = 'none';
+    }
+  });
+
+  // Generate key pair
+  document.getElementById('generateKeyPairBtn')?.addEventListener('click', async () => {
+    try {
+      const algorithm = document.getElementById('cryptoAlgorithm').value;
+      const format = document.getElementById('outputFormat').value;
+      const progressDiv = document.getElementById('keyGenProgress');
+      const statusDiv = document.getElementById('keyGenStatus');
+      const resultsDiv = document.getElementById('keyPairResults');
+      
+      // Show progress
+      progressDiv.style.display = 'block';
+      statusDiv.innerHTML = '';
+      resultsDiv.style.display = 'none';
+      
+      // Prepare algorithm parameters
+      let params = {};
+      
+      switch (algorithm) {
+        case 'RSA-PSS':
+        case 'RSA-OAEP':
+          params = {
+            modulusLength: parseInt(document.getElementById('rsaModulusLength').value),
+            publicExponent: new Uint8Array([1, 0, 1]) // 65537
+          };
+          break;
+        case 'ECDSA':
+          params = {
+            namedCurve: document.getElementById('ecdsaNamedCurve').value
+          };
+          break;
+        case 'Ed25519':
+          // Ed25519 doesn't need additional parameters
+          break;
+      }
+      
+      // Generate key pair
+      const keyPair = await generateCryptoKeyPair(algorithm, params);
+      
+      // Format keys
+      const formattedKeys = await formatKeyPair(keyPair, format);
+      
+      // Display keys
+      document.getElementById('privateKeyOutput').value = formattedKeys.privateKey;
+      document.getElementById('publicKeyOutput').value = formattedKeys.publicKey;
+      
+      // Analyze and display key details
+      const analysis = await analyzeKeyPair(keyPair, algorithm, params);
+      displayKeyAnalysis(analysis);
+      
+      // Hide progress and show results
+      progressDiv.style.display = 'none';
+      resultsDiv.style.display = 'block';
+      statusDiv.innerHTML = '<div class="alert alert-success">Key pair generated successfully! 🎉</div>';
+      
+    } catch (error) {
+      console.error('Key generation failed:', error);
+      document.getElementById('keyGenProgress').style.display = 'none';
+      document.getElementById('keyGenStatus').innerHTML = 
+        `<div class="alert alert-danger"><strong>Error:</strong> ${error.message}</div>`;
+    }
+  });
+
+  // Copy buttons
+  document.getElementById('copyPrivateKeyBtn')?.addEventListener('click', () => {
+    const privateKey = document.getElementById('privateKeyOutput').value;
+    copyCryptoKey(privateKey, 'copyPrivateKeyBtn', 'Private Key');
+  });
+
+  document.getElementById('copyPublicKeyBtn')?.addEventListener('click', () => {
+    const publicKey = document.getElementById('publicKeyOutput').value;
+    copyCryptoKey(publicKey, 'copyPublicKeyBtn', 'Public Key');
+  });
+
+  // Download buttons
+  document.getElementById('downloadPrivateKeyBtn')?.addEventListener('click', () => {
+    const privateKey = document.getElementById('privateKeyOutput').value;
+    const algorithm = document.getElementById('cryptoAlgorithm').value;
+    const format = document.getElementById('outputFormat').value;
+    const extension = format === 'JWK' ? 'json' : (format === 'PEM' ? 'pem' : 'txt');
+    downloadKey(privateKey, `private_key_${algorithm.toLowerCase()}.${extension}`);
+  });
+
+  document.getElementById('downloadPublicKeyBtn')?.addEventListener('click', () => {
+    const publicKey = document.getElementById('publicKeyOutput').value;
+    const algorithm = document.getElementById('cryptoAlgorithm').value;
+    const format = document.getElementById('outputFormat').value;
+    const extension = format === 'JWK' ? 'json' : (format === 'PEM' ? 'pem' : 'txt');
+    downloadKey(publicKey, `public_key_${algorithm.toLowerCase()}.${extension}`);
+  }); 

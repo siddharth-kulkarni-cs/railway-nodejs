@@ -52,6 +52,7 @@
         <a class="nav-link btn-outline-primary" href="#password-strength">Password Strength</a>
         <a class="nav-link btn-outline-primary" href="#random-generator">Random Generator</a>
         <a class="nav-link btn-outline-primary" href="#uuid-ulid-generator">UUID/ULID Generator</a>
+        <a class="nav-link btn-outline-primary" href="#crypto-keygen">Crypto Key Generator</a>
         <a class="nav-link btn-outline-primary" href="#ast-visualizer">JS AST Visualizer</a>
         <a class="nav-link btn-outline-primary" href="#regex-tester">Regex Tester</a>
       </nav>
@@ -224,6 +225,103 @@
                 <textarea id="bulkResult" class="form-control" rows="8" readonly></textarea>
                 <button id="copyBulkBtn" class="btn btn-outline-info mt-2">Copy All 📋</button>
               </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Cryptographic Key Pair Generator -->
+      <details id="crypto-keygen" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">Cryptographic Key Pair Generator</summary>
+        <div class="tool-card mt-3">
+          <p class="text-info mb-3">Generate cryptographic key pairs for asymmetric encryption, digital signatures, and secure communications.</p>
+          
+          <!-- Algorithm Selection -->
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>Algorithm</label>
+                <select id="cryptoAlgorithm" class="form-control">
+                  <option value="RSA-PSS" selected>RSA-PSS (Recommended)</option>
+                  <option value="RSA-OAEP">RSA-OAEP (Encryption)</option>
+                  <option value="ECDSA">ECDSA (Elliptic Curve)</option>
+                  <option value="Ed25519">Ed25519 (Edwards Curve)</option>
+                </select>
+              </div>
+              
+              <!-- RSA Key Size -->
+              <div id="rsaKeySize" class="form-group">
+                <label>Key Size (bits)</label>
+                <select id="rsaModulusLength" class="form-control">
+                  <option value="2048" selected>2048 (Fast, Secure)</option>
+                  <option value="3072">3072 (High Security)</option>
+                  <option value="4096">4096 (Maximum Security)</option>
+                </select>
+              </div>
+              
+              <!-- ECDSA Curve -->
+              <div id="ecdsaCurve" class="form-group" style="display: none;">
+                <label>Elliptic Curve</label>
+                <select id="ecdsaNamedCurve" class="form-control">
+                  <option value="P-256" selected>P-256 (secp256r1)</option>
+                  <option value="P-384">P-384 (secp384r1)</option>
+                  <option value="P-521">P-521 (secp521r1)</option>
+                </select>
+              </div>
+              
+              <!-- Output Format -->
+              <div class="form-group">
+                <label>Output Format</label>
+                <select id="outputFormat" class="form-control">
+                  <option value="PEM" selected>PEM (Base64 Encoded)</option>
+                  <option value="JWK">JWK (JSON Web Key)</option>
+                  <option value="Raw">Raw (Hex)</option>
+                </select>
+              </div>
+              
+              <button id="generateKeyPairBtn" class="btn btn-primary">Generate Key Pair 🔑</button>
+            </div>
+            
+            <div class="col-md-6">
+              <div id="keyGenProgress" class="alert alert-info" style="display: none;">
+                <strong>Generating keys...</strong> This may take a moment for larger key sizes.
+              </div>
+              <div id="keyGenStatus"></div>
+            </div>
+          </div>
+
+          <!-- Generated Keys Display -->
+          <div id="keyPairResults" style="display: none;">
+            <div class="row">
+              <div class="col-md-6">
+                <h5 class="text-success">🔒 Private Key</h5>
+                <textarea id="privateKeyOutput" class="form-control mb-2" rows="12" readonly></textarea>
+                <div class="btn-group" role="group">
+                  <button id="copyPrivateKeyBtn" class="btn btn-outline-danger">Copy Private Key 📋</button>
+                  <button id="downloadPrivateKeyBtn" class="btn btn-outline-secondary">Download 💾</button>
+                </div>
+                <div class="alert alert-warning mt-2">
+                  <small><strong>⚠️ Security Warning:</strong> Keep your private key secure! Never share it publicly.</small>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <h5 class="text-info">🔓 Public Key</h5>
+                <textarea id="publicKeyOutput" class="form-control mb-2" rows="12" readonly></textarea>
+                <div class="btn-group" role="group">
+                  <button id="copyPublicKeyBtn" class="btn btn-outline-info">Copy Public Key 📋</button>
+                  <button id="downloadPublicKeyBtn" class="btn btn-outline-secondary">Download 💾</button>
+                </div>
+                <div class="alert alert-info mt-2">
+                  <small><strong>ℹ️ Info:</strong> Public keys can be safely shared for encryption and signature verification.</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Key Analysis -->
+            <div class="mt-4">
+              <h5 class="text-secondary">Key Pair Analysis</h5>
+              <div id="keyAnalysis"></div>
             </div>
           </div>
         </div>
