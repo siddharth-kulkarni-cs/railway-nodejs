@@ -51,6 +51,7 @@
         <a class="nav-link btn-outline-primary" href="#jwt-debugger">JWT Debugger</a>
         <a class="nav-link btn-outline-primary" href="#password-strength">Password Strength</a>
         <a class="nav-link btn-outline-primary" href="#random-generator">Random Generator</a>
+        <a class="nav-link btn-outline-primary" href="#uuid-ulid-generator">UUID/ULID Generator</a>
         <a class="nav-link btn-outline-primary" href="#ast-visualizer">JS AST Visualizer</a>
         <a class="nav-link btn-outline-primary" href="#regex-tester">Regex Tester</a>
       </nav>
@@ -148,6 +149,86 @@
           <div id="randomResult"></div>
         </div>
       </details>
+
+      <!-- UUID/ULID Generator -->
+      <details id="uuid-ulid-generator" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">UUID & ULID Generator</summary>
+        <div class="tool-card mt-3">
+          <p class="text-info mb-3">Generate universally unique identifiers (UUIDs) and Universally Unique Lexicographically Sortable Identifiers (ULIDs).</p>
+          
+          <!-- UUID Section -->
+          <h5 class="text-secondary mb-3">UUID Generator</h5>
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>UUID Version</label>
+                <select id="uuidVersion" class="form-control">
+                  <option value="v4" selected>v4 (Random)</option>
+                </select>
+              </div>
+              <div id="namespaceInputs" class="form-group" style="display: none;">
+                <label for="namespaceInput">Namespace</label>
+                <input type="text" id="namespaceInput" class="form-control" placeholder="Enter namespace UUID">
+                <label for="nameInput" class="mt-2">Name</label>
+                <input type="text" id="nameInput" class="form-control" placeholder="Enter name to hash">
+              </div>
+              <button id="generateUuidBtn" class="btn btn-primary">Generate UUID 🆔</button>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="uuidResult">Generated UUID</label>
+                <input type="text" id="uuidResult" class="form-control" readonly>
+                <button id="copyUuidBtn" class="btn btn-outline-info mt-2">Copy UUID 📋</button>
+              </div>
+              <div id="uuidDetails" class="mt-3"></div>
+            </div>
+          </div>
+
+          <!-- ULID Section -->
+          <h5 class="text-secondary mb-3">ULID Generator</h5>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="ulidTimestamp">Timestamp (optional)</label>
+                <input type="text" id="ulidTimestamp" class="form-control" placeholder="Leave empty for current time">
+                <small class="form-text text-muted">Enter epoch milliseconds or leave empty for now</small>
+              </div>
+              <button id="generateUlidBtn" class="btn btn-primary">Generate ULID 🔤</button>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="ulidResult">Generated ULID</label>
+                <input type="text" id="ulidResult" class="form-control" readonly>
+                <button id="copyUlidBtn" class="btn btn-outline-info mt-2">Copy ULID 📋</button>
+              </div>
+              <div id="ulidDetails" class="mt-3"></div>
+            </div>
+          </div>
+
+          <!-- Bulk Generation -->
+          <h5 class="text-secondary mb-3 mt-4">Bulk Generation</h5>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="bulkCount">Count (max 100)</label>
+                <input type="number" id="bulkCount" class="form-control" value="10" min="1" max="100">
+              </div>
+              <div class="btn-group" role="group">
+                <button id="bulkUuidBtn" class="btn btn-secondary">Bulk UUID v4</button>
+                <button id="bulkUlidBtn" class="btn btn-secondary">Bulk ULID</button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="bulkResult">Bulk Results</label>
+                <textarea id="bulkResult" class="form-control" rows="8" readonly></textarea>
+                <button id="copyBulkBtn" class="btn btn-outline-info mt-2">Copy All 📋</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
       <!-- JavaScript AST Visualizer -->
       <details id="ast-visualizer" class="mb-5">
         <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">JavaScript AST Visualizer</summary>

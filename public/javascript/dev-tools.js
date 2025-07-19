@@ -964,3 +964,417 @@ document.getElementById('testRegexBtn')?.addEventListener('click', () => {
     document.getElementById('regexResult').innerHTML = `<div class="alert alert-danger">Invalid Regex: ${e.message}</div>`;
   }
 }); 
+
+// -----------------------------
+// UUID & ULID Generator
+// -----------------------------
+
+// Crockford's Base32 encoding for ULID
+const ULID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+// UUID v4 (Random) Generator
+function generateUUIDv4() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  
+  // Set version (4) and variant bits
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 10
+  
+  return formatUUIDBytes(bytes);
+}
+
+// UUID v1 (Timestamp + MAC) Generator
+function generateUUIDv1() {
+  // Get current timestamp in 100-nanosecond intervals since Oct 15, 1582
+  const now = Date.now();
+  const timestamp = (now * 10000) + 0x01B21DD213814000n;
+  
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  
+  // Set timestamp
+  const timestampHex = timestamp.toString(16).padStart(16, '0');
+  bytes[0] = parseInt(timestampHex.slice(14, 16), 16);
+  bytes[1] = parseInt(timestampHex.slice(12, 14), 16);
+  bytes[2] = parseInt(timestampHex.slice(10, 12), 16);
+  bytes[3] = parseInt(timestampHex.slice(8, 10), 16);
+  bytes[4] = parseInt(timestampHex.slice(6, 8), 16);
+  bytes[5] = parseInt(timestampHex.slice(4, 6), 16);
+  bytes[6] = (parseInt(timestampHex.slice(2, 4), 16) & 0x0f) | 0x10; // Version 1
+  bytes[7] = parseInt(timestampHex.slice(0, 2), 16);
+  
+  // Set variant
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  
+  return formatUUIDBytes(bytes);
+}
+
+// UUID v3/v5 (Namespace + Hash) Generator
+async function generateNamespaceUUID(version, namespace, name) {
+  try {
+    // Validate namespace UUID
+    const namespaceBytes = parseUUID(namespace);
+    if (!namespaceBytes) {
+      throw new Error('Invalid namespace UUID format');
+    }
+    
+    // Combine namespace and name
+    const nameBytes = new TextEncoder().encode(name);
+    const combined = new Uint8Array(namespaceBytes.length + nameBytes.length);
+    combined.set(namespaceBytes);
+    combined.set(nameBytes, namespaceBytes.length);
+    
+    // Hash the combined data
+    const algorithm = version === 'v3' ? 'MD5' : 'SHA-1';
+    const hashBuffer = await crypto.subtle.digest(algorithm, combined);
+    const hashBytes = new Uint8Array(hashBuffer);
+    
+    // Take first 16 bytes and set version/variant
+    const uuidBytes = hashBytes.slice(0, 16);
+    uuidBytes[6] = (uuidBytes[6] & 0x0f) | (version === 'v3' ? 0x30 : 0x50);
+    uuidBytes[8] = (uuidBytes[8] & 0x3f) | 0x80;
+    
+    return formatUUIDBytes(uuidBytes);
+  } catch (error) {
+    throw new Error(`Failed to generate ${version.toUpperCase()}: ${error.message}`);
+  }
+}
+
+// Parse UUID string to bytes
+function parseUUID(uuidString) {
+  const hex = uuidString.replace(/-/g, '');
+  if (hex.length !== 32 || !/^[0-9a-fA-F]+$/.test(hex)) {
+    return null;
+  }
+  
+  const bytes = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+// Format UUID bytes to standard string format
+function formatUUIDBytes(bytes) {
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+// Analyze UUID and return details
+function analyzeUUID(uuid) {
+  const bytes = parseUUID(uuid);
+  if (!bytes) return { error: 'Invalid UUID format' };
+  
+  const version = (bytes[6] & 0xf0) >> 4;
+  const variant = (bytes[8] & 0xc0) >> 6;
+  
+  const details = {
+    version: version,
+    variant: variant === 2 ? 'RFC 4122' : variant === 6 ? 'Microsoft' : variant === 7 ? 'Future' : 'Reserved',
+    hex: Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase()
+  };
+  
+  if (version === 1) {
+    // Extract timestamp from v1 UUID
+    const timestampHex = 
+      bytes[7].toString(16).padStart(2, '0') +
+      bytes[6].toString(16).padStart(2, '0').slice(1) +
+      bytes[5].toString(16).padStart(2, '0') +
+      bytes[4].toString(16).padStart(2, '0') +
+      bytes[3].toString(16).padStart(2, '0') +
+      bytes[2].toString(16).padStart(2, '0') +
+      bytes[1].toString(16).padStart(2, '0') +
+      bytes[0].toString(16).padStart(2, '0');
+    
+    const timestamp = BigInt('0x' + timestampHex) - 0x01B21DD213814000n;
+    const ms = Number(timestamp / 10000n);
+    details.timestamp = new Date(ms).toISOString();
+  }
+  
+  return details;
+}
+
+// ULID Generator
+function generateULID(timestamp = null) {
+  const time = timestamp !== null ? timestamp : Date.now();
+  const timeBytes = new Uint8Array(6);
+  const randomBytes = new Uint8Array(10);
+  
+  // Set timestamp bytes (48 bits)
+  let timeValue = time;
+  for (let i = 5; i >= 0; i--) {
+    timeBytes[i] = timeValue & 0xff;
+    timeValue = Math.floor(timeValue / 256);
+  }
+  
+  // Generate random bytes (80 bits)
+  crypto.getRandomValues(randomBytes);
+  
+  // Encode to Crockford Base32
+  const combined = new Uint8Array(16);
+  combined.set(timeBytes);
+  combined.set(randomBytes, 6);
+  
+  return encodeBase32(combined);
+}
+
+// Encode bytes to Crockford Base32
+function encodeBase32(bytes) {
+  let result = '';
+  let bits = 0;
+  let value = 0;
+  
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    
+    while (bits >= 5) {
+      result += ULID_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  
+  if (bits > 0) {
+    result += ULID_ALPHABET[(value << (5 - bits)) & 31];
+  }
+  
+  return result;
+}
+
+// Analyze ULID and return details
+function analyzeULID(ulid) {
+  if (ulid.length !== 26) {
+    return { error: 'Invalid ULID length (must be 26 characters)' };
+  }
+  
+  if (!/^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]+$/.test(ulid)) {
+    return { error: 'Invalid ULID characters' };
+  }
+  
+  try {
+    // Decode the timestamp part (first 10 characters)
+    const timePart = ulid.slice(0, 10);
+    const randomPart = ulid.slice(10);
+    
+    // Decode timestamp
+    let timestamp = 0;
+    for (const char of timePart) {
+      timestamp = timestamp * 32 + ULID_ALPHABET.indexOf(char);
+    }
+    
+    return {
+      timestamp: timestamp,
+      timestampISO: new Date(timestamp).toISOString(),
+      timestampPart: timePart,
+      randomPart: randomPart,
+      hex: decodeULIDToHex(ulid)
+    };
+  } catch (error) {
+    return { error: 'Failed to decode ULID' };
+  }
+}
+
+// Decode ULID to hex representation
+function decodeULIDToHex(ulid) {
+  const bytes = new Uint8Array(16);
+  let bits = 0;
+  let value = 0;
+  let byteIndex = 0;
+  
+  for (const char of ulid) {
+    value = (value << 5) | ULID_ALPHABET.indexOf(char);
+    bits += 5;
+    
+    while (bits >= 8 && byteIndex < 16) {
+      bytes[byteIndex++] = (value >>> (bits - 8)) & 0xff;
+      bits -= 8;
+    }
+  }
+  
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+// Copy to clipboard helper
+function copyToClipboard(text, buttonId, originalText) {
+  if (!text) return;
+  
+  navigator.clipboard.writeText(text).then(() => {
+    const button = document.getElementById(buttonId);
+    if (button) {
+      const original = button.textContent;
+      button.textContent = 'Copied! ✅';
+      button.classList.add('btn-success');
+      button.classList.remove('btn-outline-info');
+      
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('btn-success');
+        button.classList.add('btn-outline-info');
+      }, 1500);
+    }
+  });
+}
+
+// Display UUID details
+function displayUUIDDetails(uuid) {
+  const details = analyzeUUID(uuid);
+  const container = document.getElementById('uuidDetails');
+  
+  if (details.error) {
+    container.innerHTML = `<div class="alert alert-danger">${details.error}</div>`;
+    return;
+  }
+  
+  let html = `
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title">UUID Details</h6>
+        <table class="table table-sm">
+          <tr><th>Version:</th><td>${details.version}</td></tr>
+          <tr><th>Variant:</th><td>${details.variant}</td></tr>
+          <tr><th>Hex:</th><td><code>${details.hex}</code></td></tr>
+  `;
+  
+  if (details.timestamp) {
+    html += `<tr><th>Timestamp:</th><td>${details.timestamp}</td></tr>`;
+  }
+  
+  html += `
+        </table>
+      </div>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
+// Display ULID details
+function displayULIDDetails(ulid) {
+  const details = analyzeULID(ulid);
+  const container = document.getElementById('ulidDetails');
+  
+  if (details.error) {
+    container.innerHTML = `<div class="alert alert-danger">${details.error}</div>`;
+    return;
+  }
+  
+  const html = `
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title">ULID Details</h6>
+        <table class="table table-sm">
+          <tr><th>Timestamp:</th><td>${details.timestamp} ms</td></tr>
+          <tr><th>ISO Time:</th><td>${details.timestampISO}</td></tr>
+          <tr><th>Time Part:</th><td><code>${details.timestampPart}</code></td></tr>
+          <tr><th>Random Part:</th><td><code>${details.randomPart}</code></td></tr>
+          <tr><th>Hex:</th><td><code>${details.hex}</code></td></tr>
+        </table>
+      </div>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // UUID version selector
+  document.getElementById('uuidVersion')?.addEventListener('change', (e) => {
+    const namespaceInputs = document.getElementById('namespaceInputs');
+    const showNamespace = e.target.value === 'v3' || e.target.value === 'v5';
+    namespaceInputs.style.display = showNamespace ? 'block' : 'none';
+  });
+  
+  // Generate UUID
+  document.getElementById('generateUuidBtn')?.addEventListener('click', async () => {
+    try {
+      const version = document.getElementById('uuidVersion').value;
+      let uuid;
+      
+      switch (version) {
+        case 'v1':
+          uuid = generateUUIDv1();
+          break;
+        case 'v3':
+        case 'v5':
+          const namespace = document.getElementById('namespaceInput').value.trim();
+          const name = document.getElementById('nameInput').value.trim();
+          if (!namespace || !name) {
+            throw new Error('Namespace and name are required for v3/v5 UUIDs');
+          }
+          uuid = await generateNamespaceUUID(version, namespace, name);
+          break;
+        case 'v4':
+        default:
+          uuid = generateUUIDv4();
+          break;
+      }
+      
+      document.getElementById('uuidResult').value = uuid;
+      displayUUIDDetails(uuid);
+    } catch (error) {
+      document.getElementById('uuidDetails').innerHTML = 
+        `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+  });
+  
+  // Generate ULID
+  document.getElementById('generateUlidBtn')?.addEventListener('click', () => {
+    try {
+      const timestampInput = document.getElementById('ulidTimestamp').value.trim();
+      const timestamp = timestampInput ? parseInt(timestampInput) : null;
+      
+      if (timestampInput && (isNaN(timestamp) || timestamp < 0)) {
+        throw new Error('Invalid timestamp. Must be a positive number (epoch milliseconds)');
+      }
+      
+      const ulid = generateULID(timestamp);
+      document.getElementById('ulidResult').value = ulid;
+      displayULIDDetails(ulid);
+    } catch (error) {
+      document.getElementById('ulidDetails').innerHTML = 
+        `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+  });
+  
+  // Bulk UUID generation
+  document.getElementById('bulkUuidBtn')?.addEventListener('click', () => {
+    const count = Math.min(parseInt(document.getElementById('bulkCount').value) || 10, 100);
+    const uuids = [];
+    
+    for (let i = 0; i < count; i++) {
+      uuids.push(generateUUIDv4());
+    }
+    
+    document.getElementById('bulkResult').value = uuids.join('\n');
+  });
+  
+  // Bulk ULID generation
+  document.getElementById('bulkUlidBtn')?.addEventListener('click', () => {
+    const count = Math.min(parseInt(document.getElementById('bulkCount').value) || 10, 100);
+    const ulids = [];
+    
+    for (let i = 0; i < count; i++) {
+      ulids.push(generateULID());
+    }
+    
+    document.getElementById('bulkResult').value = ulids.join('\n');
+  });
+  
+  // Copy buttons
+  document.getElementById('copyUuidBtn')?.addEventListener('click', () => {
+    const uuid = document.getElementById('uuidResult').value;
+    copyToClipboard(uuid, 'copyUuidBtn', 'Copy UUID 📋');
+  });
+  
+  document.getElementById('copyUlidBtn')?.addEventListener('click', () => {
+    const ulid = document.getElementById('ulidResult').value;
+    copyToClipboard(ulid, 'copyUlidBtn', 'Copy ULID 📋');
+  });
+  
+  document.getElementById('copyBulkBtn')?.addEventListener('click', () => {
+    const bulk = document.getElementById('bulkResult').value;
+    copyToClipboard(bulk, 'copyBulkBtn', 'Copy All 📋');
+  });
+}); 
