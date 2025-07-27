@@ -18,10 +18,10 @@ if (MIXPANEL_ENABLED && typeof mixpanel !== 'undefined') {
 
         // Generate or retrieve a unique user ID
         function getOrCreateUserId() {
-            let userId = localStorage.getItem('mp_user_id');
+            let userId = localStorage.getItem('mp_user_id_v2');
             if (!userId) {
                 userId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-                localStorage.setItem('mp_user_id', userId);
+                localStorage.setItem('mp_user_id_v2', userId);
             }
             return userId;
         }
@@ -63,7 +63,7 @@ window.trackEvent = function(eventName, properties = {}) {
                 ...properties,
                 timestamp: new Date().toISOString(),
                 page: window.location.pathname,
-                user_id: localStorage.getItem('mp_user_id')
+                user_id: localStorage.getItem('mp_user_id_v2') || 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now()
             };
             
             mixpanel.track(eventName, enrichedProperties);
