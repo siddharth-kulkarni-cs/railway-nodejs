@@ -1721,3 +1721,828 @@ function copyCryptoKey(text, buttonId, keyType) {
     const extension = format === 'JWK' ? 'json' : (format === 'PEM' ? 'pem' : 'txt');
     downloadKey(publicKey, `public_key_${algorithm.toLowerCase()}.${extension}`);
   }); 
+
+// -----------------------------
+// Magic String Analyzer
+// -----------------------------
+
+const stringAnalyzers = [
+  // JWT: Must have 3 parts separated by dots, and Base64-decodable parts.
+  {
+    name: 'JWT (JSON Web Token)',
+    test: (s) => {
+      const parts = s.split('.');
+      if (parts.length !== 3) return false;
+      try {
+        decodeBase64UrlForJwt(parts[0]);
+        decodeBase64UrlForJwt(parts[1]);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    analyze: (s) => {
+      const parts = s.split('.');
+      const header = JSON.parse(decodeBase64UrlForJwt(parts[0]));
+      const payload = JSON.parse(decodeBase64UrlForJwt(parts[1]));
+      const signature = parts[2];
+
+      const details = {
+        Header: `<pre>${JSON.stringify(header, null, 2)}</pre>`,
+        Payload: `<pre>${JSON.stringify(payload, null, 2)}</pre>`,
+        Signature: `<code>${signature}</code>`,
+      };
+      if (payload.exp) {
+        const expiryDate = new Date(payload.exp * 1000);
+        details['Expires'] = `${expiryDate.toUTCString()} (${expiryDate < new Date() ? 'expired' : 'valid'})`;
+      }
+      return details;
+    }
+  },
+
+  // JSON: Must start with { or [ and end with } or ].
+  {
+    name: 'JSON',
+    test: (s) => {
+      s = s.trim();
+      return (s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'));
+    },
+    analyze: (s) => {
+      try {
+        const obj = JSON.parse(s);
+        const details = {
+          'Pretty-Printed': `<pre>${JSON.stringify(obj, null, 2)}</pre>`,
+          'Type': `<code>${Array.isArray(obj) ? 'Array' : typeof obj}</code>`,
+        };
+        if (Array.isArray(obj)) {
+          details['Item Count'] = `<code>${obj.length}</code>`;
+        } else if (typeof obj === 'object' && obj !== null) {
+          details['Key Count'] = `<code>${Object.keys(obj).length}</code>`;
+        }
+        return details;
+      } catch (e) {
+        return { Error: `Invalid JSON: ${e.message}` };
+      }
+    }
+  },
+
+  // URL: Must be parsable by the URL constructor.
+  {
+    name: 'URL',
+    test: (s) => {
+      try {
+        new URL(s);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    analyze: (s) => {
+      const url = new URL(s);
+      const params = {};
+      url.searchParams.forEach((val, key) => params[key] = val);
+      return {
+        Protocol: `<code>${url.protocol}</code>`,
+        Hostname: `<code>${url.hostname}</code>`,
+        Port: `<code>${url.port || 'default'}</code>`,
+        Path: `<code>${url.pathname}</code>`,
+        'Query Parameters': Object.keys(params).length > 0 ? `<pre>${JSON.stringify(params, null, 2)}</pre>` : 'None',
+        Hash: `<code>${url.hash || 'None'}</code>`,
+      };
+    }
+  },
+  
+  // Base64: A bit tricky to detect reliably, but we can check for common chars and length.
+  {
+    name: 'Base64',
+    test: (s) => /^[A-Za-z0-9+/=]+$/.test(s) && s.length % 4 === 0,
+    analyze: (s) => {
+      try {
+        const decoded = decodeBase64(s);
+        return {
+          'Decoded (UTF-8)': `<pre>${decoded}</pre>`,
+          'Original Length': `<code>${s.length} bytes</code>`,
+          'Decoded Length': `<code>${decoded.length} characters</code>`
+        };
+      } catch {
+        return { Error: 'Could not decode Base64 string.' };
+      }
+    }
+  },
+
+  // Plain Text: The fallback analyzer
+  {
+    name: 'Plain Text',
+    test: () => true, // Always matches
+    analyze: (s) => {
+      const lines = s.split(/\r?\n/);
+      const words = s.trim().split(/\s+/);
+      const charFreq = [...s].reduce((acc, char) => {
+        acc[char] = (acc[char] || 0) + 1;
+        return acc;
+      }, {});
+      const sortedChars = Object.entries(charFreq).sort((a,b) => b[1] - a[1]).slice(0, 10);
+
+      return {
+        'Character Count': `<code>${s.length}</code>`,
+        'Word Count': `<code>${s.trim() ? words.length : 0}</code>`,
+        'Line Count': `<code>${lines.length}</code>`,
+        'Avg. Word Length': `<code>${(words.reduce((sum, w) => sum + w.length, 0) / (words.length || 1)).toFixed(2)}</code>`,
+        'Top 10 Characters': `<pre>${sortedChars.map(([char, count]) => `'${char}': ${count}`).join('\n')}</pre>`
+      };
+    }
+  },
+];
+
+function displayStringAnalysis(results) {
+  const container = document.getElementById('stringAnalyzerResult');
+  if (!results || results.length === 0) {
+    container.innerHTML = '<div class="alert alert-warning">Could not determine the string type.</div>';
+    return;
+  }
+  
+  let html = `
+    <div class="alert alert-success"><strong>Detected as: ${results[0].name}</strong></div>
+    <ul class="list-group">
+  `;
+
+  for (const [key, value] of Object.entries(results[0].analysis)) {
+    html += `<li class="list-group-item"><strong>${key}:</strong><br>${value}</li>`;
+  }
+  
+  html += '</ul>';
+  
+  if (results.length > 1) {
+    html += '<h5 class="mt-4">Other possibilities:</h5>';
+    html += results.slice(1).map(r => `<span class="badge badge-secondary mr-2">${r.name}</span>`).join('');
+  }
+
+  container.innerHTML = html;
+}
+
+document.getElementById('analyzeStringBtn')?.addEventListener('click', () => {
+  const input = document.getElementById('stringAnalyzerInput').value.trim();
+  if (!input) {
+    document.getElementById('stringAnalyzerResult').innerHTML = '';
+    return;
+  }
+  
+  const possibleTypes = [];
+  for (const analyzer of stringAnalyzers) {
+    if (analyzer.test(input)) {
+      possibleTypes.push({
+        name: analyzer.name,
+        analysis: analyzer.analyze(input)
+      });
+    }
+  }
+  displayStringAnalysis(possibleTypes);
+}); 
+
+// -----------------------------
+// Advanced Magic String Analyzer with Wow Factor
+// -----------------------------
+
+// Global chart instances for cleanup (Magic String Analyzer)
+let stringDnaChartInstance = null;
+let stringEntropyChartInstance = null;
+
+// Enhanced analyzers with recursive decoding and advanced pattern detection
+const advancedStringAnalyzers = [
+  // Cryptographic Hash Detection
+  {
+    name: 'Cryptographic Hash',
+    test: (s) => {
+      s = s.replace(/[^a-fA-F0-9]/g, '');
+      return [32, 40, 56, 64, 96, 128].includes(s.length) && /^[a-fA-F0-9]+$/.test(s);
+    },
+    analyze: (s) => {
+      const clean = s.replace(/[^a-fA-F0-9]/g, '');
+      const types = {
+        32: 'MD5', 40: 'SHA-1', 56: 'SHA-224', 64: 'SHA-256',
+        96: 'SHA-384', 128: 'SHA-512'
+      };
+      return {
+        'Hash Type': `<code>${types[clean.length] || 'Unknown'}</code>`,
+        'Length': `<code>${clean.length} characters</code>`,
+        'Hex Value': `<code class="text-break">${clean}</code>`,
+        'Entropy': `<code>${computeHexEntropy(clean).toFixed(2)} bits</code>`
+      };
+    }
+  },
+
+  // Binary File Header Detection
+  {
+    name: 'Binary File Header',
+    test: (s) => {
+      const hex = s.replace(/[^a-fA-F0-9]/g, '');
+      const magicBytes = ['89504E47', 'FFD8FF', '25504446', '504B0304', 'D0CF11E0'];
+      return magicBytes.some(magic => hex.toUpperCase().startsWith(magic));
+    },
+    analyze: (s) => {
+      const hex = s.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+      const signatures = {
+        '89504E47': { type: 'PNG Image', mime: 'image/png' },
+        'FFD8FF': { type: 'JPEG Image', mime: 'image/jpeg' },
+        '25504446': { type: 'PDF Document', mime: 'application/pdf' },
+        '504B0304': { type: 'ZIP Archive', mime: 'application/zip' },
+        'D0CF11E0': { type: 'Microsoft Office', mime: 'application/msword' }
+      };
+      
+      for (const [magic, info] of Object.entries(signatures)) {
+        if (hex.startsWith(magic)) {
+          return {
+            'File Type': `<code>${info.type}</code>`,
+            'MIME Type': `<code>${info.mime}</code>`,
+            'Magic Bytes': `<code>${magic}</code>`,
+            'Hex Preview': `<code class="text-break">${hex.slice(0, 32)}...</code>`
+          };
+        }
+      }
+    }
+  },
+
+  // Network Address Analysis
+  {
+    name: 'Network Address',
+    test: (s) => {
+      return /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/\d{1,2})?$/.test(s) ||
+             /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(s) ||
+             /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})$/.test(s);
+    },
+    analyze: (s) => {
+      if (/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/\d{1,2})?$/.test(s)) {
+        const [ip, cidr] = s.split('/');
+        const octets = ip.split('.').map(Number);
+        const isPrivate = (octets[0] === 10) || 
+                         (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+                         (octets[0] === 192 && octets[1] === 168);
+        
+        return {
+          'Type': '<code>IPv4 Address</code>',
+          'Address': `<code>${ip}</code>`,
+          'CIDR': cidr ? `<code>/${cidr}</code>` : 'None',
+          'Network Class': `<code>${octets[0] < 128 ? 'A' : octets[0] < 192 ? 'B' : 'C'}</code>`,
+          'Private/Public': `<code>${isPrivate ? 'Private' : 'Public'}</code>`,
+          'Binary': `<code>${octets.map(o => o.toString(2).padStart(8, '0')).join('.')}</code>`
+        };
+      } else if (/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(s)) {
+        const clean = s.replace(/[:-]/g, '').toUpperCase();
+        const vendor = clean.slice(0, 6);
+        return {
+          'Type': '<code>MAC Address</code>',
+          'Address': `<code>${s}</code>`,
+          'OUI': `<code>${vendor}</code>`,
+          'Normalized': `<code>${clean.match(/.{2}/g).join(':')}</code>`
+        };
+      } else {
+        return {
+          'Type': '<code>IPv6 Address</code>',
+          'Address': `<code>${s}</code>`,
+          'Compressed': '<code>Yes</code>'
+        };
+      }
+    }
+  },
+
+  // Cron Expression
+  {
+    name: 'Cron Expression',
+    test: (s) => /^(\*|[0-5]?\d|\*\/\d+)\s+(\*|[01]?\d|2[0-3]|\*\/\d+)\s+(\*|[12]?\d|3[01]|\*\/\d+)\s+(\*|[01]?\d|\*\/\d+)\s+(\*|[0-6]|\*\/\d+)(\s+(\*|\d{4}))?$/.test(s),
+    analyze: (s) => {
+      const parts = s.split(/\s+/);
+      const fields = ['Minute', 'Hour', 'Day of Month', 'Month', 'Day of Week', 'Year'];
+      const ranges = ['0-59', '0-23', '1-31', '1-12', '0-6 (Sun-Sat)', 'YYYY'];
+      
+      return {
+        'Type': '<code>Cron Expression</code>',
+        'Schedule': `<pre>${fields.map((field, i) => `${field.padEnd(15)}: ${parts[i] || 'N/A'} (${ranges[i]})`).join('\n')}</pre>`,
+        'Human Readable': `<code>${parseCronToHuman(s)}</code>`
+      };
+    }
+  },
+
+  // GPS Coordinates
+  {
+    name: 'GPS Coordinates',
+    test: (s) => /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/.test(s) || /^\d{1,2}°\d{1,2}'\d{1,2}(\.\d+)?"[NS],?\s*\d{1,3}°\d{1,2}'\d{1,2}(\.\d+)?"[EW]$/.test(s),
+    analyze: (s) => {
+      if (/^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/.test(s)) {
+        const [lat, lng] = s.split(',').map(n => parseFloat(n.trim()));
+        return {
+          'Format': '<code>Decimal Degrees</code>',
+          'Latitude': `<code>${lat}°</code>`,
+          'Longitude': `<code>${lng}°</code>`,
+          'Hemisphere': `<code>${lat >= 0 ? 'N' : 'S'}, ${lng >= 0 ? 'E' : 'W'}</code>`,
+          'Google Maps': `<a href="https://maps.google.com/?q=${lat},${lng}" target="_blank">View on Map 🗺️</a>`
+        };
+      }
+      return { 'Format': '<code>DMS (Degrees, Minutes, Seconds)</code>' };
+    }
+  },
+
+  // Credit Card Number
+  {
+    name: 'Credit Card',
+    test: (s) => {
+      const clean = s.replace(/[\s-]/g, '');
+      return /^\d{13,19}$/.test(clean) && luhnCheck(clean);
+    },
+    analyze: (s) => {
+      const clean = s.replace(/[\s-]/g, '');
+      const cardTypes = {
+        '^4': 'Visa', '^5[1-5]': 'MasterCard', '^3[47]': 'American Express',
+        '^6011': 'Discover', '^30[0-5]': 'Diners Club'
+      };
+      
+      let type = 'Unknown';
+      for (const [pattern, name] of Object.entries(cardTypes)) {
+        if (new RegExp(pattern).test(clean)) {
+          type = name;
+          break;
+        }
+      }
+      
+      return {
+        'Card Type': `<code>${type}</code>`,
+        'Number': `<code>${clean.replace(/(\d{4})/g, '$1 ').trim()}</code>`,
+        'Luhn Valid': '<code>✅ Valid</code>',
+        'Length': `<code>${clean.length} digits</code>`,
+        'Masked': `<code>****-****-****-${clean.slice(-4)}</code>`
+      };
+    }
+  },
+
+  // JWT (Enhanced)
+  {
+    name: 'JWT (JSON Web Token)',
+    test: (s) => {
+      const parts = s.split('.');
+      if (parts.length !== 3) return false;
+      try {
+        decodeBase64UrlForJwt(parts[0]);
+        decodeBase64UrlForJwt(parts[1]);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    analyze: (s) => {
+      const parts = s.split('.');
+      const header = JSON.parse(decodeBase64UrlForJwt(parts[0]));
+      const payload = JSON.parse(decodeBase64UrlForJwt(parts[1]));
+      
+      const analysis = {
+        'Header': `<pre>${JSON.stringify(header, null, 2)}</pre>`,
+        'Payload': `<pre>${JSON.stringify(payload, null, 2)}</pre>`,
+        'Algorithm': `<code>${header.alg}</code>`,
+        'Token Type': `<code>${header.typ || 'JWT'}</code>`
+      };
+      
+      if (payload.exp) {
+        const expiry = new Date(payload.exp * 1000);
+        const isExpired = expiry < new Date();
+        analysis['Expiry'] = `<code>${expiry.toISOString()} ${isExpired ? '❌ EXPIRED' : '✅ Valid'}</code>`;
+      }
+      
+      if (payload.iat) {
+        analysis['Issued At'] = `<code>${new Date(payload.iat * 1000).toISOString()}</code>`;
+      }
+      
+      return analysis;
+    }
+  },
+
+  // Multi-layer Base64 with recursive decoding
+  {
+    name: 'Base64 (Multi-layer)',
+    test: (s) => /^[A-Za-z0-9+/=]+$/.test(s) && s.length % 4 === 0 && s.length > 4,
+    analyze: (s) => {
+      const layers = [];
+      let current = s;
+      let depth = 0;
+      
+      while (depth < 5) { // Max 5 layers deep
+        try {
+          const decoded = decodeBase64(current);
+          layers.push({
+            layer: depth + 1,
+            content: decoded,
+            length: decoded.length
+          });
+          
+          // Check if the decoded content is also valid Base64
+          if (/^[A-Za-z0-9+/=]+$/.test(decoded) && decoded.length % 4 === 0 && decoded.length > 4) {
+            current = decoded;
+            depth++;
+          } else {
+            break;
+          }
+        } catch {
+          break;
+        }
+      }
+      
+      const result = {
+        'Decoding Layers': `<code>${layers.length}</code>`,
+        'Original Length': `<code>${s.length} characters</code>`
+      };
+      
+      layers.forEach((layer, i) => {
+        result[`Layer ${layer.layer} Content`] = `<pre>${layer.content.length > 200 ? layer.content.slice(0, 200) + '...' : layer.content}</pre>`;
+      });
+      
+      return result;
+    }
+  },
+
+  // URL with advanced analysis
+  {
+    name: 'URL (Advanced)',
+    test: (s) => {
+      try {
+        new URL(s);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    analyze: (s) => {
+      const url = new URL(s);
+      const params = {};
+      url.searchParams.forEach((val, key) => params[key] = val);
+      
+      // Security analysis
+      const isHTTPS = url.protocol === 'https:';
+      const hasAuth = url.username || url.password;
+      const suspiciousParams = ['token', 'password', 'secret', 'key'].filter(p => 
+        Object.keys(params).some(k => k.toLowerCase().includes(p))
+      );
+      
+      return {
+        'Full URL': `<code class="text-break">${s}</code>`,
+        'Protocol': `<code>${url.protocol} ${isHTTPS ? '🔒' : '⚠️'}</code>`,
+        'Domain': `<code>${url.hostname}</code>`,
+        'Port': `<code>${url.port || 'default'}</code>`,
+        'Path': `<code>${url.pathname}</code>`,
+        'Parameters': Object.keys(params).length > 0 ? `<pre>${JSON.stringify(params, null, 2)}</pre>` : 'None',
+        'Has Auth': `<code>${hasAuth ? '⚠️ Yes' : 'No'}</code>`,
+        'Suspicious Params': suspiciousParams.length > 0 ? `<code>⚠️ ${suspiciousParams.join(', ')}</code>` : 'None',
+        'Fragment': `<code>${url.hash || 'None'}</code>`
+      };
+    }
+  },
+
+  // JSON with schema analysis
+  {
+    name: 'JSON (Advanced)',
+    test: (s) => {
+      s = s.trim();
+      if (!((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']')))) return false;
+      try {
+        JSON.parse(s);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    analyze: (s) => {
+      const obj = JSON.parse(s);
+      const analysis = analyzeJSONStructure(obj);
+      
+      return {
+        'Pretty JSON': `<pre>${JSON.stringify(obj, null, 2)}</pre>`,
+        'Type': `<code>${Array.isArray(obj) ? 'Array' : typeof obj}</code>`,
+        'Size': `<code>${JSON.stringify(obj).length} characters</code>`,
+        'Depth': `<code>${analysis.maxDepth} levels</code>`,
+        'Total Keys': `<code>${analysis.totalKeys}</code>`,
+        'Data Types': `<pre>${Object.entries(analysis.types).map(([type, count]) => `${type}: ${count}`).join('\n')}</pre>`,
+        'Schema Hint': `<code>${analysis.schemaHint}</code>`
+      };
+    }
+  },
+
+  // Plain text with advanced analysis
+  {
+    name: 'Text (Forensic Analysis)',
+    test: () => true,
+    analyze: (s) => {
+      const entropy = computeStringEntropy(s);
+      const patterns = detectTextPatterns(s);
+      const languages = detectLanguages(s);
+      const analysis = performTextForensics(s);
+      
+      return {
+        'Character Count': `<code>${s.length}</code>`,
+        'Entropy': `<code>${entropy.toFixed(3)} bits (${getEntropyDescription(entropy)})</code>`,
+        'Detected Language': `<code>${languages[0] || 'Unknown'}</code>`,
+        'Patterns Found': `<code>${patterns.join(', ') || 'None'}</code>`,
+        'Readability Score': `<code>${analysis.readability.toFixed(1)}/100</code>`,
+        'Unique Characters': `<code>${analysis.uniqueChars}</code>`,
+        'Character Distribution': generateCharacterDistribution(s)
+      };
+    }
+  }
+];
+
+// Helper functions for advanced analysis
+function computeHexEntropy(hex) {
+  const freq = {};
+  for (const char of hex) freq[char] = (freq[char] || 0) + 1;
+  return Object.values(freq).reduce((ent, count) => {
+    const p = count / hex.length;
+    return ent - p * Math.log2(p);
+  }, 0);
+}
+
+function luhnCheck(num) {
+  let sum = 0;
+  let isEven = false;
+  for (let i = num.length - 1; i >= 0; i--) {
+    let digit = parseInt(num[i]);
+    if (isEven) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    isEven = !isEven;
+  }
+  return sum % 10 === 0;
+}
+
+function parseCronToHuman(cron) {
+  const parts = cron.split(/\s+/);
+  if (parts[0] === '0' && parts[1] === '0') return 'Daily at midnight';
+  if (parts[0] === '0' && parts[1] !== '*') return `Daily at ${parts[1]}:00`;
+  if (parts[0] !== '*' && parts[1] !== '*') return `Daily at ${parts[1]}:${parts[0].padStart(2, '0')}`;
+  return 'Complex schedule (see breakdown above)';
+}
+
+function analyzeJSONStructure(obj, depth = 0) {
+  const result = { maxDepth: depth, totalKeys: 0, types: {} };
+  
+  if (Array.isArray(obj)) {
+    result.types['array'] = (result.types['array'] || 0) + 1;
+    obj.forEach(item => {
+      const sub = analyzeJSONStructure(item, depth + 1);
+      result.maxDepth = Math.max(result.maxDepth, sub.maxDepth);
+      result.totalKeys += sub.totalKeys;
+      Object.entries(sub.types).forEach(([type, count]) => {
+        result.types[type] = (result.types[type] || 0) + count;
+      });
+    });
+  } else if (typeof obj === 'object' && obj !== null) {
+    result.types['object'] = (result.types['object'] || 0) + 1;
+    result.totalKeys += Object.keys(obj).length;
+    Object.values(obj).forEach(value => {
+      const sub = analyzeJSONStructure(value, depth + 1);
+      result.maxDepth = Math.max(result.maxDepth, sub.maxDepth);
+      result.totalKeys += sub.totalKeys;
+      Object.entries(sub.types).forEach(([type, count]) => {
+        result.types[type] = (result.types[type] || 0) + count;
+      });
+    });
+  } else {
+    const type = typeof obj;
+    result.types[type] = (result.types[type] || 0) + 1;
+  }
+  
+  // Schema hint
+  if (depth === 0) {
+    const keys = Object.keys(obj);
+    if (keys.includes('id') && keys.includes('name')) result.schemaHint = 'Entity/Resource';
+    else if (keys.includes('token') || keys.includes('access_token')) result.schemaHint = 'Authentication';
+    else if (keys.includes('error') || keys.includes('message')) result.schemaHint = 'Error Response';
+    else result.schemaHint = 'Generic Object';
+  }
+  
+  return result;
+}
+
+function computeStringEntropy(str) {
+  const freq = {};
+  for (const char of str) freq[char] = (freq[char] || 0) + 1;
+  return Object.values(freq).reduce((ent, count) => {
+    const p = count / str.length;
+    return ent - p * Math.log2(p);
+  }, 0);
+}
+
+function getEntropyDescription(entropy) {
+  if (entropy < 2) return 'Very Low - Repetitive';
+  if (entropy < 3) return 'Low - Some patterns';
+  if (entropy < 4) return 'Medium - Mixed content';
+  if (entropy < 5) return 'High - Random-like';
+  return 'Very High - Highly random';
+}
+
+function detectTextPatterns(text) {
+  const patterns = [];
+  if (/\b\d{4}-\d{2}-\d{2}\b/.test(text)) patterns.push('Dates');
+  if (/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/.test(text)) patterns.push('IP Addresses');
+  if (/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)) patterns.push('Email');
+  if (/\b\d{3}-?\d{2}-?\d{4}\b/.test(text)) patterns.push('SSN-like');
+  if (/\bhttps?:\/\//.test(text)) patterns.push('URLs');
+  if (/\b[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}\b/i.test(text)) patterns.push('UUIDs');
+  return patterns;
+}
+
+function detectLanguages(text) {
+  const samples = text.toLowerCase().split(/\s+/).slice(0, 100); // First 100 words
+  const languageScores = {
+    English: 0, Spanish: 0, French: 0, German: 0
+  };
+  
+  const commonWords = {
+    English: ['the', 'and', 'of', 'to', 'a', 'in', 'is', 'it', 'you', 'that'],
+    Spanish: ['el', 'la', 'de', 'que', 'y', 'a', 'en', 'un', 'es', 'se'],
+    French: ['le', 'de', 'et', 'à', 'un', 'il', 'être', 'et', 'en', 'avoir'],
+    German: ['der', 'die', 'und', 'in', 'den', 'von', 'zu', 'das', 'mit', 'sich']
+  };
+  
+  samples.forEach(word => {
+    Object.entries(commonWords).forEach(([lang, words]) => {
+      if (words.includes(word)) languageScores[lang]++;
+    });
+  });
+  
+  return Object.entries(languageScores)
+    .sort(([,a], [,b]) => b - a)
+    .map(([lang]) => lang);
+}
+
+function performTextForensics(text) {
+  const words = text.split(/\s+/).filter(w => w.length > 0);
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const avgWordsPerSentence = sentences.length > 0 ? words.length / sentences.length : 0;
+  const avgSyllablesPerWord = words.reduce((sum, word) => sum + countSyllables(word), 0) / words.length;
+  
+  // Flesch Reading Ease Score approximation
+  const readability = Math.max(0, Math.min(100, 
+    206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord)
+  ));
+  
+  const uniqueChars = new Set(text).size;
+  
+  return { readability, uniqueChars };
+}
+
+function countSyllables(word) {
+  return Math.max(1, (word.toLowerCase().match(/[aeiouy]+/g) || []).length);
+}
+
+function generateCharacterDistribution(text) {
+  const categories = {
+    'Letters': 0, 'Digits': 0, 'Spaces': 0, 'Punctuation': 0, 'Other': 0
+  };
+  
+  for (const char of text) {
+    if (/[a-zA-Z]/.test(char)) categories.Letters++;
+    else if (/[0-9]/.test(char)) categories.Digits++;
+    else if (/\s/.test(char)) categories.Spaces++;
+    else if (/[.,;:!?'"()[\]{}]/.test(char)) categories.Punctuation++;
+    else categories.Other++;
+  }
+  
+  const total = text.length;
+  return Object.entries(categories)
+    .map(([cat, count]) => `${cat}: ${count} (${((count/total)*100).toFixed(1)}%)`)
+    .join('\n');
+}
+
+// Enhanced display function with visualizations
+function displayStringAnalysis(results) {
+  const container = document.getElementById('stringAnalyzerResult');
+  if (!results || results.length === 0) {
+    container.innerHTML = '<div class="alert alert-warning">Could not analyze the string.</div>';
+    return;
+  }
+  
+  // Clean up previous charts
+  if (stringDnaChartInstance) stringDnaChartInstance.destroy();
+  if (stringEntropyChartInstance) stringEntropyChartInstance.destroy();
+  
+  const primary = results[0];
+  let html = `
+    <div class="alert alert-success">
+      <strong>🔮 Magic Analysis Complete!</strong><br>
+      <span class="badge badge-primary">${primary.name}</span>
+      ${results.length > 1 ? results.slice(1).map(r => `<span class="badge badge-secondary ml-1">${r.name}</span>`).join('') : ''}
+    </div>
+  `;
+  
+  // Main analysis
+  html += '<div class="card mb-3"><div class="card-body">';
+  html += `<h5 class="card-title">${primary.name} Analysis</h5>`;
+  html += '<div class="row">';
+  
+  let colCount = 0;
+  for (const [key, value] of Object.entries(primary.analysis)) {
+    if (colCount % 2 === 0 && colCount > 0) html += '</div><div class="row">';
+    html += `<div class="col-md-6 mb-2"><strong>${key}:</strong><br>${value}</div>`;
+    colCount++;
+  }
+  html += '</div></div></div>';
+  
+  // Add visualizations for text analysis
+  if (primary.name === 'Text (Forensic Analysis)') {
+    html += `
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <h6>Character Distribution</h6>
+          <canvas id="stringDnaChart" height="250"></canvas>
+        </div>
+        <div class="col-md-6">
+          <h6>Entropy Visualization</h6>
+          <canvas id="entropyChart" height="250"></canvas>
+        </div>
+      </div>
+    `;
+  }
+  
+  container.innerHTML = html;
+  
+  // Render charts if text analysis
+  if (primary.name === 'Text (Forensic Analysis)') {
+    renderStringVisualizations(document.getElementById('stringAnalyzerInput').value);
+  }
+}
+
+function renderStringVisualizations(text) {
+  // Character DNA Chart
+  const categories = { Letters: 0, Digits: 0, Spaces: 0, Punctuation: 0, Other: 0 };
+  for (const char of text) {
+    if (/[a-zA-Z]/.test(char)) categories.Letters++;
+    else if (/[0-9]/.test(char)) categories.Digits++;
+    else if (/\s/.test(char)) categories.Spaces++;
+    else if (/[.,;:!?'"()[\]{}]/.test(char)) categories.Punctuation++;
+    else categories.Other++;
+  }
+  
+  const dnaCtx = document.getElementById('stringDnaChart').getContext('2d');
+  stringDnaChartInstance = new Chart(dnaCtx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(categories),
+      datasets: [{
+        data: Object.values(categories),
+        backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1']
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+  
+  // Entropy over sliding window
+  const windowSize = Math.min(50, Math.floor(text.length / 10));
+  const entropyData = [];
+  for (let i = 0; i <= text.length - windowSize; i += Math.max(1, Math.floor(windowSize / 2))) {
+    const window = text.slice(i, i + windowSize);
+    entropyData.push(computeStringEntropy(window));
+  }
+  
+  const entropyCtx = document.getElementById('entropyChart').getContext('2d');
+  stringEntropyChartInstance = new Chart(entropyCtx, {
+    type: 'line',
+    data: {
+      labels: entropyData.map((_, i) => i),
+      datasets: [{
+        label: 'Entropy',
+        data: entropyData,
+        borderColor: '#007bff',
+        fill: false,
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true, max: 6 },
+        x: { title: { display: true, text: 'Text Position' } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+document.getElementById('analyzeStringBtn')?.addEventListener('click', () => {
+  const input = document.getElementById('stringAnalyzerInput').value.trim();
+  if (!input) {
+    document.getElementById('stringAnalyzerResult').innerHTML = '';
+    return;
+  }
+  
+  const possibleTypes = [];
+  for (const analyzer of advancedStringAnalyzers) {
+    if (analyzer.test(input)) {
+      possibleTypes.push({
+        name: analyzer.name,
+        analysis: analyzer.analyze(input)
+      });
+    }
+  }
+  
+  displayStringAnalysis(possibleTypes);
+}); 

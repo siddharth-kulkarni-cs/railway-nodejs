@@ -55,6 +55,7 @@
         <a class="nav-link btn-outline-primary" href="#crypto-keygen">Crypto Key Generator</a>
         <a class="nav-link btn-outline-primary" href="#ast-visualizer">JS AST Visualizer</a>
         <a class="nav-link btn-outline-primary" href="#regex-tester">Regex Tester</a>
+        <a class="nav-link btn-outline-primary" href="#string-analyzer">String Analyzer</a>
       </nav>
 
       <details id="base64" class="mb-5" open>
@@ -355,6 +356,20 @@
           </div>
           <button id="testRegexBtn" class="btn btn-primary mb-3">Test Regex 🔍</button>
           <div id="regexResult"></div>
+        </div>
+      </details>
+
+      <!-- Magic String Analyzer -->
+      <details id="string-analyzer" class="mb-5">
+        <summary class="h4 mb-3" style="color: var(--primary-color); cursor: pointer;">Magic String Analyzer</summary>
+        <div class="tool-card mt-3">
+          <p class="text-info mb-3">🔮 <strong>Advanced forensic string analysis!</strong> Automatically detects and analyzes: cryptographic hashes, network addresses, GPS coordinates, credit cards, JWTs, multi-layer Base64, binary file headers, cron expressions, and performs deep text forensics with entropy visualization.</p>
+          <div class="form-group">
+            <label for="stringAnalyzerInput">Input String</label>
+            <textarea id="stringAnalyzerInput" class="form-control" rows="6" placeholder="Paste anything here: a hash, IP address, GPS coordinates, credit card, JWT, nested Base64, binary data, cron job, or any text..."></textarea>
+          </div>
+          <button id="analyzeStringBtn" class="btn btn-primary mb-3">🔮 Analyze Magic</button>
+          <div id="stringAnalyzerResult"></div>
         </div>
       </details>
     </main>
