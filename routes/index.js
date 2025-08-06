@@ -657,4 +657,168 @@ router.get('/data-analysis', async (req, res) => {
   }
 });
 
+// Route to serve the reverse geocoding demo page
+router.get('/reverse-geocode-demo', (req, res) => {
+  // res.sendFile(path.join(__dirname, '../views/index.html'));
+  res.sendFile(path.join(__dirname, '../public/reverse-geocode-demo.html'));
+});
+
+// Reverse Geocoding API Route
+// Converts latitude and longitude coordinates to city and country information
+router.get('/api/reverse-geocode', async (req, res) => {
+  try {
+    // Extract and validate query parameters
+    const { lat, lon, lng } = req.query;
+    
+    // Support both 'lon' and 'lng' for longitude
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lon || lng);
+    console.log(`latitude: ${latitude}, longitude: ${longitude}`);
+    
+    // Input validation
+    if (!lat || (!lon && !lng)) {
+      return res.status(400).json({
+        error: 'Missing required parameters',
+        message: 'Please provide lat and lon (or lng) query parameters',
+        example: '/api/reverse-geocode?lat=40.7128&lon=-74.0060'
+      });
+    }
+    
+    // Validate numeric values
+    if (isNaN(latitude) || isNaN(longitude)) {
+      return res.status(400).json({
+        error: 'Invalid coordinates',
+        message: 'Latitude and longitude must be valid numbers',
+        provided: { lat, lon: lon || lng }
+      });
+    }
+    
+    // Validate coordinate ranges
+    if (latitude < -90 || latitude > 90) {
+      return res.status(400).json({
+        error: 'Invalid latitude',
+        message: 'Latitude must be between -90 and 90 degrees',
+        provided: latitude
+      });
+    }
+    
+    if (longitude < -180 || longitude > 180) {
+      return res.status(400).json({
+        error: 'Invalid longitude',
+        message: 'Longitude must be between -180 and 180 degrees',
+        provided: longitude
+      });
+    }
+    
+    // Track API usage with Mixpanel
+    mixpanel.track('REVERSE_GEOCODE_REQUEST', getComprehensiveUserProfile(req, {
+      latitude,
+      longitude,
+      timestamp: new Date().toISOString(),
+      eventType: 'reverse_geocode'
+    }));
+    
+    // Call OpenStreetMap Nominatim API for reverse geocoding
+    // Free service, no API key required, but includes User-Agent header per their requirements
+    const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
+    
+    const response = await fetch(nominatimUrl, {
+      headers: {
+        'User-Agent': 'ContentstackDictionary/1.0 (https://github.com/yourusername/contentstack-dictionary)'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Geocoding service returned status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Handle case where no location is found (e.g., middle of ocean)
+    if (data.error) {
+      return res.status(404).json({
+        error: 'Location not found',
+        message: data.error,
+        coordinates: { latitude, longitude }
+      });
+    }
+    
+    // Extract relevant location information
+    const address = data.address || {};
+    
+    // Build response with city and country information
+    // Try multiple fields for city as Nominatim uses different fields based on location type
+    const city = address.city || 
+                 address.town || 
+                 address.village || 
+                 address.municipality ||
+                 address.suburb ||
+                 address.county ||
+                 address.state_district ||
+                 null;
+    
+    const country = address.country || null;
+    const countryCode = address.country_code?.toUpperCase() || null;
+    
+    // Additional useful information
+    const state = address.state || address.province || null;
+    const postalCode = address.postcode || null;
+    const displayName = data.display_name || null;
+    
+    // Build response object
+    const locationInfo = {
+      coordinates: {
+        latitude,
+        longitude
+      },
+      location: {
+        city,
+        state,
+        country,
+        countryCode,
+        postalCode,
+        displayName
+      },
+      // Include raw address for debugging/additional info if needed
+      rawAddress: address,
+      // OpenStreetMap attribution as required by their terms
+      attribution: data.licence || 'Data © OpenStreetMap contributors'
+    };
+    
+    // Track successful geocoding
+    mixpanel.track('REVERSE_GEOCODE_SUCCESS', getComprehensiveUserProfile(req, {
+      latitude,
+      longitude,
+      city,
+      country,
+      countryCode,
+      hasCity: !!city,
+      hasCountry: !!country,
+      eventType: 'reverse_geocode_success'
+    }));
+    
+    // Send successful response
+    res.json(locationInfo);
+    
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    
+    // Track error with Mixpanel
+    mixpanel.track('REVERSE_GEOCODE_ERROR', getComprehensiveUserProfile(req, {
+      errorType: error.name,
+      errorMessage: error.message,
+      latitude: req.query.lat,
+      longitude: req.query.lon || req.query.lng,
+      eventType: 'reverse_geocode_error'
+    }));
+    
+    // Send error response
+    res.status(500).json({
+      error: 'Reverse geocoding failed',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;
