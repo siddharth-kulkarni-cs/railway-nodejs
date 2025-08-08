@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Network Tools</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <style>
+      body { background: #0f172a; color: #e2e8f0; }
+      .card { background: #111827; border: 1px solid #1f2937; }
+      .card-header { background: #0b1220; border-bottom: 1px solid #1f2937; }
+      .btn-primary { background: linear-gradient(135deg,#667eea,#764ba2); border: none; }
+      .form-control, .custom-select { background: #0b1220; color: #e2e8f0; border: 1px solid #1f2937; }
+      pre { background: #0b1220; color: #93c5fd; padding: 12px; border-radius: 8px; max-height: 360px; overflow:auto }
+      .badge-new { font-size: .65rem; margin-left: .3rem }
+      a.back { color: #93c5fd; text-decoration: none; }
+      a.back:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div class="container py-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <a href="/" class="back">← Back to Home</a>
+        <h1 class="h4 mb-0">Network Tools <span class="badge badge-danger badge-new">NEW</span></h1>
+      </div>
+
+      <div class="row">
+        <div class="col-lg-6 mb-4">
+          <div class="card h-100">
+            <div class="card-header"><strong>DNS Lookup</strong></div>
+            <div class="card-body">
+              <div class="form-row align-items-end">
+                <div class="form-group col-8">
+                  <label>Host</label>
+                  <input id="dnsHost" class="form-control" placeholder="example.com" />
+                </div>
+                <div class="form-group col-4">
+                  <label>Type</label>
+                  <select id="dnsType" class="custom-select">
+                    <option>A</option>
+                    <option>AAAA</option>
+                    <option>CNAME</option>
+                    <option>MX</option>
+                    <option>NS</option>
+                    <option>TXT</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="dnsLookup()">Lookup</button>
+              <pre id="dnsOut" class="mt-3"></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+          <div class="card h-100">
+            <div class="card-header"><strong>Reverse DNS</strong></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label>IP (v4 or v6)</label>
+                <input id="revIp" class="form-control" placeholder="8.8.8.8" />
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="reverseDns()">Reverse</button>
+              <pre id="revOut" class="mt-3"></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+          <div class="card h-100">
+            <div class="card-header"><strong>HTTP Ping (HEAD)</strong></div>
+            <div class="card-body">
+              <div class="form-row align-items-end">
+                <div class="form-group col-8">
+                  <label>Host</label>
+                  <input id="pingHost" class="form-control" placeholder="example.com" />
+                </div>
+                <div class="form-group col-4">
+                  <label>Timeout (ms)</label>
+                  <input id="pingTimeout" class="form-control" type="number" value="5000" min="1000" max="15000" />
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="httpPing()">Ping</button>
+              <pre id="pingOut" class="mt-3"></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+          <div class="card h-100">
+            <div class="card-header"><strong>Traceroute</strong></div>
+            <div class="card-body">
+              <div class="form-row align-items-end">
+                <div class="form-group col-8">
+                  <label>Host</label>
+                  <input id="traceHost" class="form-control" placeholder="example.com" />
+                </div>
+                <div class="form-group col-4">
+                  <label>Max Hops</label>
+                  <input id="traceHops" class="form-control" type="number" value="12" min="3" max="20" />
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="traceRoute()">Run</button>
+              <pre id="traceOut" class="mt-3"></pre>
+              <small class="text-muted d-block mt-2">Note: Traceroute may be unavailable in some hosting environments.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function setPre(id, obj) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+      }
+
+      async function dnsLookup() {
+        const host = document.getElementById('dnsHost').value.trim();
+        const type = document.getElementById('dnsType').value.trim();
+        setPre('dnsOut', 'Loading...');
+        try {
+          const r = await fetch(`/api/network/dns-lookup?host=${encodeURIComponent(host)}&type=${encodeURIComponent(type)}`);
+          const j = await r.json();
+          setPre('dnsOut', r.ok ? j : { error: j.error, message: j.message });
+        } catch (e) {
+          setPre('dnsOut', { error: String(e.message) });
+        }
+      }
+
+      async function reverseDns() {
+        const ip = document.getElementById('revIp').value.trim();
+        setPre('revOut', 'Loading...');
+        try {
+          const r = await fetch(`/api/network/reverse-dns?ip=${encodeURIComponent(ip)}`);
+          const j = await r.json();
+          setPre('revOut', r.ok ? j : { error: j.error, message: j.message });
+        } catch (e) {
+          setPre('revOut', { error: String(e.message) });
+        }
+      }
+
+      async function httpPing() {
+        const host = document.getElementById('pingHost').value.trim();
+        const timeoutMs = document.getElementById('pingTimeout').value.trim();
+        setPre('pingOut', 'Loading...');
+        try {
+          const r = await fetch(`/api/network/http-ping?host=${encodeURIComponent(host)}&timeoutMs=${encodeURIComponent(timeoutMs)}`);
+          const j = await r.json();
+          setPre('pingOut', r.ok ? j : { error: j.error, message: j.message });
+        } catch (e) {
+          setPre('pingOut', { error: String(e.message) });
+        }
+      }
+
+      async function traceRoute() {
+        const host = document.getElementById('traceHost').value.trim();
+        const maxHops = document.getElementById('traceHops').value.trim();
+        setPre('traceOut', 'Loading...');
+        try {
+          const r = await fetch(`/api/network/traceroute?host=${encodeURIComponent(host)}&maxHops=${encodeURIComponent(maxHops)}`);
+          const j = await r.json();
+          if (r.ok) {
+            if (j.output) setPre('traceOut', j.output);
+            else setPre('traceOut', j);
+          } else {
+            setPre('traceOut', { error: j.error, message: j.message });
+          }
+        } catch (e) {
+          setPre('traceOut', { error: String(e.message) });
+        }
+      }
+    </script>
+  </body>
+</html>
+
+

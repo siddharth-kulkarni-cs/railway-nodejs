@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const { spawn } = require('child_process');
+const dnsPromises = require('dns').promises;
 const router = express.Router();
 const { contentstackRedirectFragment, dynamicWordFragement, inputTextFragment } = require('../services/html-fragments');
 const { generateContent, generateJoke } = require('../services/gen-ai');
@@ -654,6 +656,177 @@ router.get('/data-analysis', async (req, res) => {
     }));
     
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ------------------------------
+// Network Tools UI
+// ------------------------------
+router.get('/network-tools', (req, res) => {
+  mixpanel.track('NETWORK_TOOLS_ACCESS', getComprehensiveUserProfile(req, {
+    page: 'network-tools',
+    eventType: 'network_tools_access'
+  }));
+  res.sendFile(path.join(__dirname, '../views/network-tools.html'));
+});
+
+// ------------------------------
+// Helpers for network operations
+// ------------------------------
+const HOSTNAME_REGEX = /^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*\.?$/;
+const IPV4_REGEX = /^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}$/;
+const IPV6_REGEX = /^[0-9a-fA-F:]{2,39}$/;
+
+function isValidHostnameOrIp(input) {
+  if (!input || typeof input !== 'string') return false;
+  const trimmed = input.trim();
+  return HOSTNAME_REGEX.test(trimmed) || IPV4_REGEX.test(trimmed) || IPV6_REGEX.test(trimmed);
+}
+
+function withTimeout(promise, ms, onTimeout) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      try { onTimeout && onTimeout(); } catch (_) { /* noop */ }
+      reject(new Error(`Operation timed out after ${ms}ms`));
+    }, ms);
+    promise
+      .then((v) => { clearTimeout(timer); resolve(v); })
+      .catch((e) => { clearTimeout(timer); reject(e); });
+  });
+}
+
+async function httpPingHost(host, timeoutMs = 5000) {
+  if (!isValidHostnameOrIp(host)) throw new Error('Invalid host');
+  const controller = new AbortController();
+  const urlCandidates = [
+    `https://${host}/`,
+    `http://${host}/`
+  ];
+  const start = Date.now();
+  for (const url of urlCandidates) {
+    try {
+      const response = await withTimeout(
+        fetch(url, { method: 'HEAD', signal: controller.signal }),
+        timeoutMs,
+        () => controller.abort()
+      );
+      const ms = Date.now() - start;
+      return { urlTried: url, status: response.status, ok: response.ok, ms };
+    } catch (err) {
+      // try next
+    }
+  }
+  throw new Error('HTTP ping failed for both HTTPS and HTTP');
+}
+
+function runTraceroute(host, maxHops = 15, perHopProbes = 1, timeoutMs = 8000) {
+  if (!isValidHostnameOrIp(host)) return Promise.reject(new Error('Invalid host'));
+  // Prefer traceroute on Unix-like systems; fall back to tracepath; Windows 'tracert'
+  const tryCommands = [
+    { cmd: 'traceroute', args: ['-m', String(maxHops), '-q', String(perHopProbes), host] },
+    { cmd: 'tracepath', args: ['-m', String(maxHops), host] },
+    { cmd: 'tracert', args: ['-h', String(maxHops), host] }
+  ];
+  let proc;
+  const attempt = (idx) => {
+    if (idx >= tryCommands.length) return Promise.reject(new Error('Traceroute utility not available'));
+    const { cmd, args } = tryCommands[idx];
+    return new Promise((resolve, reject) => {
+      let stdout = '';
+      let stderr = '';
+      try {
+        proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (e) {
+        return resolve(null); // try next command
+      }
+      const killer = setTimeout(() => {
+        try { proc.kill('SIGKILL'); } catch (_) {}
+      }, timeoutMs);
+      proc.stdout.on('data', (d) => { if (stdout.length < 100000) stdout += d.toString(); });
+      proc.stderr.on('data', (d) => { if (stderr.length < 20000) stderr += d.toString(); });
+      proc.on('error', () => resolve(null));
+      proc.on('close', (code) => {
+        clearTimeout(killer);
+        if (code === 0 || stdout) return resolve({ cmd, args, stdout });
+        resolve(null);
+      });
+    }).then((res) => res || attempt(idx + 1));
+  };
+  return attempt(0);
+}
+
+// ------------------------------
+// Network Tools APIs (secured)
+// ------------------------------
+router.get('/api/network/dns-lookup', async (req, res) => {
+  try {
+    const host = String(req.query.host || '').trim();
+    const type = String(req.query.type || 'A').toUpperCase();
+    const allowed = new Set(['A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT']);
+    if (!isValidHostnameOrIp(host)) return res.status(400).json({ error: 'Invalid host' });
+    if (!allowed.has(type)) return res.status(400).json({ error: 'Unsupported DNS type' });
+
+    mixpanel.track('NETWORK_DNS_LOOKUP', getComprehensiveUserProfile(req, { host, type, eventType: 'dns_lookup' }));
+
+    const resolverMap = {
+      A: () => dnsPromises.resolve4(host),
+      AAAA: () => dnsPromises.resolve6(host),
+      CNAME: () => dnsPromises.resolveCname(host),
+      MX: () => dnsPromises.resolveMx(host),
+      NS: () => dnsPromises.resolveNs(host),
+      TXT: () => dnsPromises.resolveTxt(host),
+    };
+
+    const result = await withTimeout(resolverMap[type](), 5000);
+    return res.json({ host, type, result });
+  } catch (err) {
+    mixpanel.track('NETWORK_DNS_LOOKUP_ERROR', getComprehensiveUserProfile(req, { error: String(err.message), eventType: 'dns_lookup_error' }));
+    return res.status(500).json({ error: 'DNS lookup failed', message: String(err.message) });
+  }
+});
+
+router.get('/api/network/reverse-dns', async (req, res) => {
+  try {
+    const ip = String(req.query.ip || '').trim();
+    if (!(IPV4_REGEX.test(ip) || IPV6_REGEX.test(ip))) return res.status(400).json({ error: 'Invalid IP' });
+
+    mixpanel.track('NETWORK_REVERSE_DNS', getComprehensiveUserProfile(req, { ip, eventType: 'reverse_dns' }));
+    const result = await withTimeout(dnsPromises.reverse(ip), 5000);
+    return res.json({ ip, result });
+  } catch (err) {
+    mixpanel.track('NETWORK_REVERSE_DNS_ERROR', getComprehensiveUserProfile(req, { error: String(err.message), eventType: 'reverse_dns_error' }));
+    return res.status(500).json({ error: 'Reverse DNS failed', message: String(err.message) });
+  }
+});
+
+router.get('/api/network/http-ping', async (req, res) => {
+  try {
+    const host = String(req.query.host || '').trim();
+    if (!isValidHostnameOrIp(host)) return res.status(400).json({ error: 'Invalid host' });
+    const timeoutMs = Math.min(Math.max(parseInt(String(req.query.timeoutMs || '5000'), 10) || 5000, 1000), 15000);
+
+    mixpanel.track('NETWORK_HTTP_PING', getComprehensiveUserProfile(req, { host, timeoutMs, eventType: 'http_ping' }));
+    const result = await httpPingHost(host, timeoutMs);
+    return res.json({ host, ...result });
+  } catch (err) {
+    mixpanel.track('NETWORK_HTTP_PING_ERROR', getComprehensiveUserProfile(req, { error: String(err.message), eventType: 'http_ping_error' }));
+    return res.status(500).json({ error: 'HTTP ping failed', message: String(err.message) });
+  }
+});
+
+router.get('/api/network/traceroute', async (req, res) => {
+  try {
+    const host = String(req.query.host || '').trim();
+    const maxHops = Math.min(Math.max(parseInt(String(req.query.maxHops || '12'), 10) || 12, 3), 20);
+    if (!isValidHostnameOrIp(host)) return res.status(400).json({ error: 'Invalid host' });
+
+    mixpanel.track('NETWORK_TRACEROUTE', getComprehensiveUserProfile(req, { host, maxHops, eventType: 'traceroute' }));
+    const resTrace = await runTraceroute(host, maxHops, 1, 8000);
+    if (!resTrace) return res.status(503).json({ error: 'Traceroute not available in this environment' });
+    return res.json({ host, cmd: resTrace.cmd, args: resTrace.args, output: resTrace.stdout });
+  } catch (err) {
+    mixpanel.track('NETWORK_TRACEROUTE_ERROR', getComprehensiveUserProfile(req, { error: String(err.message), eventType: 'traceroute_error' }));
+    return res.status(500).json({ error: 'Traceroute failed', message: String(err.message) });
   }
 });
 
