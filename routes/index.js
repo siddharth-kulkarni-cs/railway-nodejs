@@ -8,9 +8,13 @@ const { generateContent, generateJoke } = require('../services/gen-ai');
 const { getCompletionForWrongWord, getJokeFromGroq } = require('../services/groq-ai-client');
 const mixpanel = require('../services/mixpanel');
 const { getSampleData } = require('../services/firebase.service');
+const { StatusAggregator } = require('../services/status-aggregator');
 const crypto = require('crypto');
 
 const api_key = process.env.GEMINI_API_KEY;
+
+// Initialize status aggregator
+const statusAggregator = new StatusAggregator();
 
 // Aggressive user profiling and fingerprinting
 function generateDeviceFingerprint(req) {
@@ -323,6 +327,17 @@ router.get('/', (req, res) => {
 // New route for animations
 router.get('/animations', (req, res) => {
   res.sendFile(path.join(__dirname, '../views/animations.html'));
+});
+
+// Status Dashboard Page
+router.get('/status', (req, res) => {
+  // Track status dashboard access with comprehensive profiling
+  mixpanel.track('STATUS_DASHBOARD_ACCESS', getComprehensiveUserProfile(req, {
+    page: 'status-dashboard',
+    eventType: 'status_dashboard_access'
+  }));
+
+  res.sendFile(path.join(__dirname, '../views/status-dashboard.html'));
 });
 
 router.get('/word-usage', async (req, res) => {
@@ -988,6 +1003,135 @@ router.get('/api/reverse-geocode', async (req, res) => {
     // Send error response
     res.status(500).json({
       error: 'Reverse geocoding failed',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// ------------------------------
+// Status Aggregation API
+// ------------------------------
+router.get('/api/status/aggregate', async (req, res) => {
+  try {
+    // Track status aggregation request with comprehensive profiling
+    mixpanel.track('STATUS_AGGREGATION_REQUEST', getComprehensiveUserProfile(req, {
+      eventType: 'status_aggregation',
+      endpoint: 'aggregate',
+      requestedServices: req.query.services || 'all'
+    }));
+
+    const data = await statusAggregator.getAggregatedStatus();
+
+    // Set appropriate caching headers (status data changes frequently but not constantly)
+    res.set({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+      'X-Data-Source': 'Multiple Status Pages',
+      'X-Last-Updated': data.timestamp
+    });
+
+    // Track successful response
+    mixpanel.track('STATUS_AGGREGATION_SUCCESS', getComprehensiveUserProfile(req, {
+      eventType: 'status_aggregation_success',
+      servicesCount: data.summary.total_services,
+      operationalCount: data.summary.operational,
+      errorCount: data.summary.errors,
+      responseTime: Date.now() - Date.parse(data.timestamp)
+    }));
+
+    res.json(data);
+
+  } catch (error) {
+    console.error('Status aggregation error:', error);
+
+    // Track error
+    mixpanel.track('STATUS_AGGREGATION_ERROR', getComprehensiveUserProfile(req, {
+      eventType: 'status_aggregation_error',
+      errorType: error.name,
+      errorMessage: error.message
+    }));
+
+    res.status(500).json({
+      error: 'Status aggregation failed',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Health check endpoint for the aggregator itself
+router.get('/api/status/health', async (req, res) => {
+  const health = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    services: ['openai', 'anthropic', 'cloudflare'],
+    cache: {
+      enabled: true,
+      duration_minutes: 5
+    }
+  };
+
+  res.set({
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-cache'
+  });
+
+  res.json(health);
+});
+
+// Get status for specific service
+router.get('/api/status/:service', async (req, res) => {
+  try {
+    const { service } = req.params;
+    const { refresh } = req.query;
+
+    // Track individual service status request
+    mixpanel.track('STATUS_SERVICE_REQUEST', getComprehensiveUserProfile(req, {
+      eventType: 'status_service_request',
+      service: service,
+      refreshRequested: !!refresh
+    }));
+
+    // Support cache refresh
+    if (refresh === 'true') {
+      statusAggregator.clearCache();
+    }
+
+    const data = await statusAggregator.getServiceStatus(service);
+
+    // Set caching headers
+    res.set({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+      'X-Data-Source': `${service} Status Page`,
+      'X-Last-Updated': data.updated_at
+    });
+
+    // Track successful response
+    mixpanel.track('STATUS_SERVICE_SUCCESS', getComprehensiveUserProfile(req, {
+      eventType: 'status_service_success',
+      service: service,
+      status: data.overall_status,
+      componentsCount: data.components.length,
+      incidentsCount: data.incidents.length
+    }));
+
+    res.json(data);
+
+  } catch (error) {
+    console.error(`Status service error for ${req.params.service}:`, error);
+
+    // Track error
+    mixpanel.track('STATUS_SERVICE_ERROR', getComprehensiveUserProfile(req, {
+      eventType: 'status_service_error',
+      service: req.params.service,
+      errorType: error.name,
+      errorMessage: error.message
+    }));
+
+    res.status(500).json({
+      error: `Failed to fetch ${req.params.service} status`,
       message: error.message,
       timestamp: new Date().toISOString()
     });
