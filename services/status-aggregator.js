@@ -57,11 +57,33 @@ class StatusPageService {
   }
 
   normalizeData(data) {
+    // Get the most recent timestamp from various sources
+    const pageTimestamp = data.page?.updated_at ? new Date(data.page.updated_at) : new Date();
+    const currentTimestamp = new Date();
+
+    // For components, find the most recent update
+    let latestComponentTimestamp = pageTimestamp;
+    if (data.components && data.components.length > 0) {
+      const componentTimestamps = data.components
+        .map(c => c.updated_at ? new Date(c.updated_at) : null)
+        .filter(date => date && !isNaN(date.getTime()));
+
+      if (componentTimestamps.length > 0) {
+        latestComponentTimestamp = new Date(Math.max(...componentTimestamps.map(d => d.getTime())));
+      }
+    }
+
+    // Use the most recent timestamp, but if it's more than 24 hours old, use current time
+    // This handles cases where the API is not updating timestamps properly
+    const timeDiff = currentTimestamp - latestComponentTimestamp;
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const finalTimestamp = timeDiff > maxAge ? currentTimestamp : latestComponentTimestamp;
+
     const normalized = {
       service: this.name,
       overall_status: STATUS_MAPPING[data.status?.indicator] || 'unknown',
       description: data.status?.description || 'Status unavailable',
-      updated_at: data.page?.updated_at || new Date().toISOString(),
+      updated_at: finalTimestamp.toISOString(),
       components: [],
       incidents: [],
       maintenance: []
