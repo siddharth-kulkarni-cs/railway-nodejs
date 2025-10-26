@@ -13,17 +13,45 @@
         <!-- Header -->
         <header class="app-header">
             <div class="header-content">
-                <h1>📝 Sticky Notes Board</h1>
-                <p>A temporary pad to write your stikies.  Nothing is persisted.</p>
-                <div class="header-actions">
-                    <button class="btn btn-primary" id="addNoteBtn">
-                        <span class="btn-icon">+</span>
-                        Add Note
-                    </button>
-                    <button class="btn btn-secondary" id="clearAllBtn">
-                        <span class="btn-icon">🗑️</span>
-                        Clear All
-                    </button>
+                <div class="header-left">
+                    <h1>📝 Sticky Notes Board</h1>
+                    <p>A temporary pad to write your stikies.  Nothing is persisted.</p>
+                </div>
+                <div class="header-right">
+                    <div class="search-container">
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            class="search-input" 
+                            placeholder="🔍 Search notes..."
+                            autocomplete="off"
+                        />
+                        <button class="btn btn-clear-search" id="clearSearchBtn" style="display: none;">
+                            ✕
+                        </button>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="addNoteBtn">
+                            <span class="btn-icon">+</span>
+                            Add Note
+                        </button>
+                        <button class="btn btn-select" id="selectModeBtn">
+                            <span class="btn-icon">☑️</span>
+                            Select Mode
+                        </button>
+                        <button class="btn btn-delete-selected" id="deleteSelectedBtn" style="display: none;">
+                            <span class="btn-icon">🗑️</span>
+                            Delete Selected (<span id="selectedCount">0</span>)
+                        </button>
+                        <button class="btn btn-export" id="exportBtn">
+                            <span class="btn-icon">📥</span>
+                            Export Notes as JSON
+                        </button>
+                        <button class="btn btn-secondary" id="clearAllBtn">
+                            <span class="btn-icon">🗑️</span>
+                            Clear All
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -34,7 +62,7 @@
                 <div class="empty-state-content">
                     <div class="empty-state-icon">📌</div>
                     <h2>No sticky notes yet</h2>
-                    <p>Click "Add Note" to create your first sticky note</p>
+                    <p>Click "Add Note" or double-click anywhere to create a sticky note</p>
                 </div>
             </div>
         </main>

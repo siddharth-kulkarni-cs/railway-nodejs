@@ -9,6 +9,9 @@ class StickyNotesApp {
         this.draggedNote = null;
         this.dragOffset = { x: 0, y: 0 };
         this.currentColorPicker = null;
+        this.searchTerm = '';
+        this.selectMode = false;
+        this.selectedNotes = new Set();
         
         this.init();
     }
@@ -38,11 +41,55 @@ class StickyNotesApp {
             this.clearAllNotes();
         });
 
+        // Export button
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            this.exportNotes();
+        });
+
+        // Select mode button
+        document.getElementById('selectModeBtn').addEventListener('click', () => {
+            this.toggleSelectMode();
+        });
+
+        // Delete selected button
+        document.getElementById('deleteSelectedBtn').addEventListener('click', () => {
+            this.deleteSelectedNotes();
+        });
+
+        // Search input
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', (e) => {
+            this.handleSearch(e.target.value);
+        });
+
+        // Clear search button
+        document.getElementById('clearSearchBtn').addEventListener('click', () => {
+            searchInput.value = '';
+            this.handleSearch('');
+        });
+
         // Canvas click to close color picker
         document.getElementById('canvasArea').addEventListener('click', (e) => {
             if (this.currentColorPicker && !e.target.closest('.color-palette')) {
                 this.hideColorPalette();
             }
+        });
+
+        // Canvas double-click to create note
+        document.getElementById('canvasArea').addEventListener('dblclick', (e) => {
+            // Don't create note if double-clicking on an existing note or in select mode
+            if (e.target.closest('.sticky-note') || this.selectMode) {
+                return;
+            }
+
+            // Get click position relative to canvas
+            const canvasArea = document.getElementById('canvasArea');
+            const rect = canvasArea.getBoundingClientRect();
+            const x = e.clientX - rect.left + canvasArea.scrollLeft;
+            const y = e.clientY - rect.top + canvasArea.scrollTop;
+
+            // Create note at click position
+            this.createNoteAtPosition(x, y);
         });
 
         // Global mouse events for dragging
@@ -63,6 +110,41 @@ class StickyNotesApp {
         this.renderNote(note);
         this.saveNotes();
         this.updateEmptyState();
+    }
+
+    createNoteAtPosition(x, y) {
+        // Adjust position to center the note on the click point
+        const noteWidth = 250;
+        const noteHeight = 250;
+        const adjustedX = Math.max(0, x - noteWidth / 2);
+        const adjustedY = Math.max(0, y - noteHeight / 2);
+
+        const note = {
+            id: this.generateId(),
+            content: '',
+            color: '#fef68a',
+            position: { x: adjustedX, y: adjustedY },
+            timestamp: new Date().toISOString()
+        };
+
+        this.notes.push(note);
+        this.renderNote(note);
+        this.saveNotes();
+        this.updateEmptyState();
+
+        // Auto-focus the textarea of the newly created note
+        setTimeout(() => {
+            const noteElement = document.querySelector(`[data-id="${note.id}"]`);
+            if (noteElement) {
+                const textarea = noteElement.querySelector('.sticky-note-content');
+                if (textarea) {
+                    textarea.focus();
+                }
+            }
+        }, 100);
+
+        // Show a subtle notification
+        this.showNotification('📝 New note created! Start typing...', 'info');
     }
 
     renderNote(note) {
@@ -98,6 +180,14 @@ class StickyNotesApp {
         const dragHandle = noteElement.querySelector('.drag-handle');
         const header = noteElement.querySelector('.sticky-note-header');
 
+        // Note click handler - for select mode
+        noteElement.addEventListener('click', (e) => {
+            if (this.selectMode) {
+                e.stopPropagation();
+                this.toggleNoteSelection(note.id);
+            }
+        });
+
         // Content editing
         textarea.addEventListener('input', (e) => {
             note.content = e.target.value;
@@ -106,26 +196,39 @@ class StickyNotesApp {
             this.saveNotes();
         });
 
+        // Prevent editing in select mode
+        textarea.addEventListener('focus', (e) => {
+            if (this.selectMode) {
+                e.target.blur();
+            }
+        });
+
         // Delete note
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.deleteNote(note.id);
+            if (!this.selectMode) {
+                this.deleteNote(note.id);
+            }
         });
 
         // Color picker
         colorBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.showColorPalette(colorBtn, note.id);
+            if (!this.selectMode) {
+                this.showColorPalette(colorBtn, note.id);
+            }
         });
 
-        // Dragging - from header or drag handle
+        // Dragging - from header or drag handle (disabled in select mode)
         header.addEventListener('mousedown', (e) => {
+            if (this.selectMode) return;
             if (e.target === textarea || e.target.closest('.action-btn')) return;
             this.startDragging(noteElement, e);
         });
 
         dragHandle.addEventListener('mousedown', (e) => {
             e.stopPropagation();
+            if (this.selectMode) return;
             this.startDragging(noteElement, e);
         });
 
@@ -262,6 +365,228 @@ class StickyNotesApp {
         }
     }
 
+    exportNotes() {
+        if (this.notes.length === 0) {
+            alert('No notes to export! Create some notes first.');
+            return;
+        }
+
+        try {
+            // Create export data with metadata
+            const exportData = {
+                version: '1.0',
+                exportDate: new Date().toISOString(),
+                exportTimestamp: Date.now(),
+                totalNotes: this.notes.length,
+                notes: this.notes.map(note => ({
+                    id: note.id,
+                    content: note.content,
+                    color: note.color,
+                    position: note.position,
+                    timestamp: note.timestamp,
+                    created: note.timestamp
+                }))
+            };
+
+            // Convert to pretty JSON
+            const jsonString = JSON.stringify(exportData, null, 2);
+            
+            // Create blob and download link
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            
+            // Generate filename with timestamp
+            const dateStr = new Date().toISOString().split('T')[0];
+            const timeStr = new Date().toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            }).replace(':', '-');
+            const filename = `sticky-notes-${dateStr}-${timeStr}.json`;
+            
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'none';
+            
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
+            
+            // Show success message
+            this.showNotification(`✅ Exported ${this.notes.length} note${this.notes.length !== 1 ? 's' : ''} to ${filename}`, 'success');
+            
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Failed to export notes. Please try again.');
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: ${type === 'success' ? 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' : '#667eea'};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            font-weight: 600;
+            animation: slideInRight 0.3s ease;
+            max-width: 350px;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    // Multi-select functionality
+    toggleSelectMode() {
+        this.selectMode = !this.selectMode;
+        const selectModeBtn = document.getElementById('selectModeBtn');
+        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+        const addNoteBtn = document.getElementById('addNoteBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+
+        if (this.selectMode) {
+            // Enter select mode
+            selectModeBtn.classList.add('active');
+            selectModeBtn.innerHTML = '<span class="btn-icon">✕</span> Exit Select';
+            deleteSelectedBtn.style.display = 'flex';
+            
+            // Disable other buttons
+            addNoteBtn.style.opacity = '0.5';
+            addNoteBtn.style.pointerEvents = 'none';
+            exportBtn.style.opacity = '0.5';
+            exportBtn.style.pointerEvents = 'none';
+            clearAllBtn.style.opacity = '0.5';
+            clearAllBtn.style.pointerEvents = 'none';
+
+            // Add select-mode class to all notes
+            document.querySelectorAll('.sticky-note').forEach(noteElement => {
+                noteElement.classList.add('select-mode');
+            });
+
+            this.showNotification('🎯 Select Mode: Click notes to select/deselect them', 'info');
+        } else {
+            // Exit select mode
+            selectModeBtn.classList.remove('active');
+            selectModeBtn.innerHTML = '<span class="btn-icon">☑️</span> Select Mode';
+            deleteSelectedBtn.style.display = 'none';
+            
+            // Re-enable other buttons
+            addNoteBtn.style.opacity = '1';
+            addNoteBtn.style.pointerEvents = 'auto';
+            exportBtn.style.opacity = '1';
+            exportBtn.style.pointerEvents = 'auto';
+            clearAllBtn.style.opacity = '1';
+            clearAllBtn.style.pointerEvents = 'auto';
+
+            // Remove select-mode and selected classes from all notes
+            document.querySelectorAll('.sticky-note').forEach(noteElement => {
+                noteElement.classList.remove('select-mode', 'selected');
+            });
+
+            // Clear selection
+            this.selectedNotes.clear();
+            this.updateSelectedCount();
+        }
+    }
+
+    toggleNoteSelection(noteId) {
+        const noteElement = document.querySelector(`[data-id="${noteId}"]`);
+        if (!noteElement) return;
+
+        if (this.selectedNotes.has(noteId)) {
+            this.selectedNotes.delete(noteId);
+            noteElement.classList.remove('selected');
+        } else {
+            this.selectedNotes.add(noteId);
+            noteElement.classList.add('selected');
+        }
+
+        this.updateSelectedCount();
+    }
+
+    updateSelectedCount() {
+        const countElement = document.getElementById('selectedCount');
+        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+        
+        countElement.textContent = this.selectedNotes.size;
+        
+        if (this.selectedNotes.size === 0) {
+            deleteSelectedBtn.disabled = true;
+            deleteSelectedBtn.style.opacity = '0.5';
+        } else {
+            deleteSelectedBtn.disabled = false;
+            deleteSelectedBtn.style.opacity = '1';
+        }
+    }
+
+    deleteSelectedNotes() {
+        if (this.selectedNotes.size === 0) {
+            alert('No notes selected!');
+            return;
+        }
+
+        const count = this.selectedNotes.size;
+        if (confirm(`Delete ${count} selected note${count !== 1 ? 's' : ''}? This cannot be undone.`)) {
+            // Convert Set to Array to avoid modification during iteration
+            const noteIdsToDelete = Array.from(this.selectedNotes);
+            
+            // Delete each note
+            noteIdsToDelete.forEach(noteId => {
+                // Remove from notes array
+                this.notes = this.notes.filter(n => n.id !== noteId);
+                
+                // Remove element from DOM
+                const noteElement = document.querySelector(`[data-id="${noteId}"]`);
+                if (noteElement) {
+                    noteElement.style.animation = 'noteAppear 0.3s ease reverse';
+                    setTimeout(() => {
+                        noteElement.remove();
+                    }, 300);
+                }
+            });
+
+            // Clear selection
+            this.selectedNotes.clear();
+            this.updateSelectedCount();
+            
+            // Save and update UI
+            this.saveNotes();
+            this.updateEmptyState();
+            
+            // Exit select mode
+            this.toggleSelectMode();
+            
+            // Show success notification
+            this.showNotification(`✅ Deleted ${count} note${count !== 1 ? 's' : ''}`, 'success');
+        }
+    }
+
     renderNotes() {
         this.notes.forEach(note => this.renderNote(note));
     }
@@ -273,6 +598,128 @@ class StickyNotesApp {
         } else {
             emptyState.style.display = 'none';
         }
+    }
+
+    // Search Functionality
+    handleSearch(searchTerm) {
+        this.searchTerm = searchTerm.trim().toLowerCase();
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        
+        // Show/hide clear search button
+        if (this.searchTerm) {
+            clearSearchBtn.style.display = 'block';
+        } else {
+            clearSearchBtn.style.display = 'none';
+        }
+
+        // Update all notes
+        const noteElements = document.querySelectorAll('.sticky-note');
+        
+        if (!this.searchTerm) {
+            // No search term - show all notes normally
+            noteElements.forEach(noteElement => {
+                noteElement.classList.remove('search-hidden', 'search-match');
+                this.removeHighlights(noteElement);
+            });
+            return;
+        }
+
+        // Search active - filter and highlight
+        noteElements.forEach(noteElement => {
+            const noteId = noteElement.dataset.id;
+            const note = this.notes.find(n => n.id === noteId);
+            
+            if (!note) return;
+
+            const contentMatches = note.content.toLowerCase().includes(this.searchTerm);
+            
+            if (contentMatches) {
+                noteElement.classList.remove('search-hidden');
+                noteElement.classList.add('search-match');
+                this.highlightMatches(noteElement, note.content);
+            } else {
+                noteElement.classList.add('search-hidden');
+                noteElement.classList.remove('search-match');
+                this.removeHighlights(noteElement);
+            }
+        });
+    }
+
+    highlightMatches(noteElement, content) {
+        const textarea = noteElement.querySelector('.sticky-note-content');
+        if (!textarea || !this.searchTerm) return;
+
+        // Create a highlighted version for display
+        const regex = new RegExp(`(${this.escapeRegex(this.searchTerm)})`, 'gi');
+        const highlighted = content.replace(regex, '<mark class="search-highlight">$1</mark>');
+        
+        // Store original textarea for editing
+        if (!textarea.dataset.originalValue) {
+            textarea.dataset.originalValue = content;
+        }
+
+        // Create a display div if it doesn't exist
+        let displayDiv = noteElement.querySelector('.sticky-note-display');
+        if (!displayDiv) {
+            displayDiv = document.createElement('div');
+            displayDiv.className = 'sticky-note-display';
+            displayDiv.style.cssText = textarea.style.cssText;
+            displayDiv.style.whiteSpace = 'pre-wrap';
+            displayDiv.style.wordBreak = 'break-word';
+            displayDiv.style.cursor = 'text';
+            displayDiv.style.fontFamily = textarea.style.fontFamily || "'Comic Sans MS', cursive, sans-serif";
+            displayDiv.style.fontSize = textarea.style.fontSize || '1rem';
+            displayDiv.style.lineHeight = textarea.style.lineHeight || '1.6';
+            displayDiv.style.color = textarea.style.color || '#333';
+            displayDiv.style.flex = '1';
+            displayDiv.style.minHeight = '180px';
+            displayDiv.style.padding = '0';
+            
+            // Insert display div and hide textarea
+            textarea.parentNode.insertBefore(displayDiv, textarea);
+            textarea.style.display = 'none';
+            
+            // Click to focus textarea for editing
+            displayDiv.addEventListener('click', () => {
+                textarea.style.display = 'block';
+                displayDiv.style.display = 'none';
+                textarea.focus();
+            });
+            
+            // When textarea loses focus, show display div again
+            textarea.addEventListener('blur', () => {
+                if (this.searchTerm) {
+                    const note = this.notes.find(n => n.id === noteElement.dataset.id);
+                    if (note) {
+                        this.highlightMatches(noteElement, note.content);
+                    }
+                    textarea.style.display = 'none';
+                    displayDiv.style.display = 'block';
+                }
+            });
+        }
+
+        displayDiv.innerHTML = highlighted;
+        displayDiv.style.display = 'block';
+        textarea.style.display = 'none';
+    }
+
+    removeHighlights(noteElement) {
+        const textarea = noteElement.querySelector('.sticky-note-content');
+        const displayDiv = noteElement.querySelector('.sticky-note-display');
+        
+        if (displayDiv) {
+            displayDiv.style.display = 'none';
+        }
+        
+        if (textarea) {
+            textarea.style.display = 'block';
+            delete textarea.dataset.originalValue;
+        }
+    }
+
+    escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     // Local Storage Methods
