@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sticky Notes Board</title>
+    
+    <link rel="stylesheet" href="/css/stickies.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>📝 Sticky Notes Board</h1>
+                <p>A temporary pad to write your stikies.  Nothing is persisted.</p>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="addNoteBtn">
+                        <span class="btn-icon">+</span>
+                        Add Note
+                    </button>
+                    <button class="btn btn-secondary" id="clearAllBtn">
+                        <span class="btn-icon">🗑️</span>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Canvas Area -->
+        <main class="canvas-area" id="canvasArea">
+            <div class="empty-state" id="emptyState">
+                <div class="empty-state-content">
+                    <div class="empty-state-icon">📌</div>
+                    <h2>No sticky notes yet</h2>
+                    <p>Click "Add Note" to create your first sticky note</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Color Picker Palette (hidden by default) -->
+        <div class="color-palette" id="colorPalette" style="display: none;">
+            <div class="color-option" data-color="#fef68a" style="background: #fef68a;"></div>
+            <div class="color-option" data-color="#ffb3ba" style="background: #ffb3ba;"></div>
+            <div class="color-option" data-color="#bae1ff" style="background: #bae1ff;"></div>
+            <div class="color-option" data-color="#baffc9" style="background: #baffc9;"></div>
+            <div class="color-option" data-color="#ffdfba" style="background: #ffdfba;"></div>
+            <div class="color-option" data-color="#e0bbff" style="background: #e0bbff;"></div>
+        </div>
+    </div>
+
+    <script src="/javascript/stickies.js"></script>
+</body>
+</html>
+

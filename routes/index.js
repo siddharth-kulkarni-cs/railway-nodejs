@@ -329,6 +329,17 @@ router.get('/animations', (req, res) => {
   res.sendFile(path.join(__dirname, '../views/animations.html'));
 });
 
+// Sticky Notes Board
+router.get('/stickies', (req, res) => {
+  // Track sticky notes page access
+  mixpanel.track('STICKIES_PAGE_ACCESS', getComprehensiveUserProfile(req, {
+    page: 'stickies',
+    eventType: 'stickies_page_access'
+  }));
+
+  res.sendFile(path.join(__dirname, '../views/stickies.html'));
+});
+
 // Status Dashboard Page
 router.get('/status', (req, res) => {
   // Track status dashboard access with comprehensive profiling
