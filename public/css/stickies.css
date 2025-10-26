@@ -178,6 +178,16 @@ body {
     transform: translateY(-2px);
 }
 
+.btn-import {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.btn-import:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+}
+
 .btn-export {
     background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     color: white;

@@ -48,6 +48,10 @@
                             <span class="btn-icon">🗑️</span>
                             Delete Selected (<span id="selectedCount">0</span>)
                         </button>
+                        <button class="btn btn-import" id="importBtn">
+                            <span class="btn-icon">📤</span>
+                            Import JSON
+                        </button>
                         <button class="btn btn-export" id="exportBtn">
                             <span class="btn-icon">📥</span>
                             Export Notes as JSON
@@ -57,6 +61,8 @@
                             Clear All
                         </button>
                     </div>
+                    <!-- Hidden file input for import -->
+                    <input type="file" id="importFileInput" accept=".json,application/json" style="display: none;" />
                 </div>
             </div>
         </header>

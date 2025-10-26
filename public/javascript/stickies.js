@@ -41,6 +41,16 @@ class StickyNotesApp {
             this.clearAllNotes();
         });
 
+        // Import button
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('importFileInput').click();
+        });
+
+        // File input change handler
+        document.getElementById('importFileInput').addEventListener('change', (e) => {
+            this.handleImport(e);
+        });
+
         // Export button
         document.getElementById('exportBtn').addEventListener('click', () => {
             this.exportNotes();
@@ -425,6 +435,267 @@ class StickyNotesApp {
         } catch (error) {
             console.error('Export failed:', error);
             alert('Failed to export notes. Please try again.');
+        }
+    }
+
+    handleImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Reset file input for potential re-import
+        event.target.value = '';
+
+        // Validate file type
+        if (!file.type.includes('json') && !file.name.endsWith('.json')) {
+            alert('❌ Invalid file type! Please select a JSON file.');
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const jsonData = JSON.parse(e.target.result);
+                
+                // Validate JSON structure
+                if (!this.validateImportData(jsonData)) {
+                    alert('❌ Invalid JSON format! Please ensure you are importing a file exported from this application.');
+                    return;
+                }
+
+                // Show import options dialog
+                this.showImportDialog(jsonData);
+
+            } catch (error) {
+                console.error('Import error:', error);
+                alert('❌ Failed to parse JSON file. Please ensure the file is valid JSON.');
+            }
+        };
+
+        reader.onerror = () => {
+            alert('❌ Failed to read file. Please try again.');
+        };
+
+        reader.readAsText(file);
+    }
+
+    validateImportData(data) {
+        // Check if it's our export format
+        if (data.version && data.notes && Array.isArray(data.notes)) {
+            // Validate each note has required fields
+            return data.notes.every(note => 
+                note.id && 
+                note.hasOwnProperty('content') && 
+                note.color && 
+                note.position &&
+                note.timestamp
+            );
+        }
+        return false;
+    }
+
+    showImportDialog(importData) {
+        const noteCount = importData.notes.length;
+        const exportDate = new Date(importData.exportDate).toLocaleString();
+        
+        // Create custom dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'import-dialog';
+        dialog.innerHTML = `
+            <div class="import-dialog-overlay"></div>
+            <div class="import-dialog-content">
+                <h3>📤 Import Sticky Notes</h3>
+                <div class="import-info">
+                    <p><strong>File contains:</strong> ${noteCount} note${noteCount !== 1 ? 's' : ''}</p>
+                    <p><strong>Exported on:</strong> ${exportDate}</p>
+                    <p><strong>Current notes:</strong> ${this.notes.length}</p>
+                </div>
+                <div class="import-options">
+                    <p><strong>How would you like to import?</strong></p>
+                    <button class="btn btn-import-merge" id="importMergeBtn">
+                        <span class="btn-icon">➕</span>
+                        Merge (Add to existing notes)
+                    </button>
+                    <button class="btn btn-import-replace" id="importReplaceBtn">
+                        <span class="btn-icon">🔄</span>
+                        Replace (Delete existing notes)
+                    </button>
+                    <button class="btn btn-secondary" id="importCancelBtn">
+                        <span class="btn-icon">✕</span>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        // Add styles for the dialog
+        this.addImportDialogStyles();
+
+        // Handle button clicks
+        document.getElementById('importMergeBtn').addEventListener('click', () => {
+            this.performImport(importData, 'merge');
+            document.body.removeChild(dialog);
+        });
+
+        document.getElementById('importReplaceBtn').addEventListener('click', () => {
+            if (confirm(`⚠️ This will delete all ${this.notes.length} existing notes. Continue?`)) {
+                this.performImport(importData, 'replace');
+                document.body.removeChild(dialog);
+            }
+        });
+
+        document.getElementById('importCancelBtn').addEventListener('click', () => {
+            document.body.removeChild(dialog);
+        });
+
+        // Close on overlay click
+        dialog.querySelector('.import-dialog-overlay').addEventListener('click', () => {
+            document.body.removeChild(dialog);
+        });
+    }
+
+    addImportDialogStyles() {
+        if (document.getElementById('import-dialog-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'import-dialog-styles';
+        style.textContent = `
+            .import-dialog {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 20000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .import-dialog-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.6);
+                backdrop-filter: blur(5px);
+            }
+
+            .import-dialog-content {
+                position: relative;
+                background: white;
+                border-radius: 12px;
+                padding: 2rem;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                animation: slideInScale 0.3s ease;
+            }
+
+            @keyframes slideInScale {
+                from {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+
+            .import-dialog-content h3 {
+                margin-top: 0;
+                color: #333;
+                font-size: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .import-info {
+                background: #f8f9fa;
+                padding: 1rem;
+                border-radius: 8px;
+                margin-bottom: 1.5rem;
+            }
+
+            .import-info p {
+                margin: 0.5rem 0;
+                color: #666;
+            }
+
+            .import-options p {
+                font-weight: 600;
+                color: #333;
+                margin-bottom: 1rem;
+            }
+
+            .import-options {
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .btn-import-merge {
+                background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                color: white;
+            }
+
+            .btn-import-replace {
+                background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                color: white;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    performImport(importData, mode) {
+        try {
+            if (mode === 'replace') {
+                // Clear existing notes
+                this.notes = [];
+                document.querySelectorAll('.sticky-note').forEach(note => note.remove());
+            }
+
+            // Import notes
+            const importedCount = importData.notes.length;
+            let successCount = 0;
+
+            importData.notes.forEach(noteData => {
+                try {
+                    // Create new note with imported data
+                    // Generate new ID to avoid conflicts
+                    const note = {
+                        id: this.generateId(),
+                        content: noteData.content || '',
+                        color: noteData.color || '#fef68a',
+                        position: noteData.position || this.getRandomPosition(),
+                        timestamp: new Date().toISOString()
+                    };
+
+                    this.notes.push(note);
+                    this.renderNote(note);
+                    successCount++;
+                } catch (error) {
+                    console.error('Error importing note:', error);
+                }
+            });
+
+            // Save and update UI
+            this.saveNotes();
+            this.updateEmptyState();
+
+            // Show success message
+            const modeText = mode === 'merge' ? 'merged' : 'imported';
+            this.showNotification(
+                `✅ Successfully ${modeText} ${successCount} of ${importedCount} note${importedCount !== 1 ? 's' : ''}!`,
+                'success'
+            );
+
+        } catch (error) {
+            console.error('Import failed:', error);
+            alert('❌ Import failed. Please try again.');
         }
     }
 
