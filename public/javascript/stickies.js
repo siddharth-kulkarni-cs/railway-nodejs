@@ -105,6 +105,11 @@ class StickyNotesApp {
         // Global mouse events for dragging
         document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         document.addEventListener('mouseup', () => this.handleMouseUp());
+
+        // Paste event listener - create note from clipboard
+        document.addEventListener('paste', (e) => {
+            this.handlePaste(e);
+        });
     }
 
     createNote(noteData = null) {
@@ -155,6 +160,47 @@ class StickyNotesApp {
 
         // Show a subtle notification
         this.showNotification('📝 New note created! Start typing...', 'info');
+    }
+
+    handlePaste(e) {
+        // Don't create a note if pasting inside a textarea or input
+        const target = e.target;
+        if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable) {
+            // Allow normal paste behavior in text fields
+            return;
+        }
+
+        // Prevent default paste behavior
+        e.preventDefault();
+
+        // Get clipboard data
+        const clipboardData = e.clipboardData || window.clipboardData;
+        if (!clipboardData) return;
+
+        const pastedText = clipboardData.getData('text');
+        
+        // Only create note if there's actual content
+        if (!pastedText || pastedText.trim().length === 0) {
+            return;
+        }
+
+        // Create note with pasted content at a random position
+        const note = {
+            id: this.generateId(),
+            content: pastedText.trim(),
+            color: '#fef68a',
+            position: this.getRandomPosition(),
+            timestamp: new Date().toISOString()
+        };
+
+        this.notes.push(note);
+        this.renderNote(note);
+        this.saveNotes();
+        this.updateEmptyState();
+
+        // Show notification
+        const preview = pastedText.trim().substring(0, 30) + (pastedText.trim().length > 30 ? '...' : '');
+        this.showNotification(`📋 Note created from clipboard: "${preview}"`, 'success');
     }
 
     renderNote(note) {

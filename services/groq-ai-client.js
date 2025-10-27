@@ -64,7 +64,7 @@ async function getJokeFromGroq(topic) {
     let model = "llama-3.3-70b-versatile";
     const random = Math.random();
     if(random < 0.5){
-        model = "deepseek-r1-distill-llama-70b"
+        model = "openai/gpt-oss-120b"
     }
     console.log('Using Groq model:', model);
     const response = await groq.chat.completions.create({
