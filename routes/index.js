@@ -281,6 +281,13 @@ function getComprehensiveUserProfile(req, additionalData = {}) {
 const wordCache = new Map();
 const CACHE_MAX_SIZE = 1000; // Maximum number of entries to prevent memory issues
 
+// Tech news cache
+const techNewsCache = {
+  data: null,
+  timestamp: null,
+  CACHE_DURATION: 10 * 60 * 1000 // 10 minutes in milliseconds
+};
+
 // Cache cleanup function
 function cleanupCache() {
   if (wordCache.size > CACHE_MAX_SIZE) {
@@ -1143,6 +1150,142 @@ router.get('/api/status/:service', async (req, res) => {
 
     res.status(500).json({
       error: `Failed to fetch ${req.params.service} status`,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// ------------------------------
+// Tech News API
+// ------------------------------
+router.get('/api/tech-news', async (req, res) => {
+  try {
+    const startTime = Date.now();
+    const { refresh } = req.query;
+    
+    // Track tech news request
+    mixpanel.track('TECH_NEWS_REQUEST', getComprehensiveUserProfile(req, {
+      eventType: 'tech_news_request',
+      endpoint: 'tech-news',
+      refreshRequested: !!refresh
+    }));
+
+    // Clear cache if refresh is requested
+    if (refresh === 'true') {
+      techNewsCache.data = null;
+      techNewsCache.timestamp = null;
+      console.log('Tech news cache cleared due to refresh request');
+    }
+
+    // Check cache
+    const now = Date.now();
+    if (techNewsCache.data && techNewsCache.timestamp && 
+        (now - techNewsCache.timestamp) < techNewsCache.CACHE_DURATION) {
+      console.log('Tech news cache hit');
+      
+      // Track cache hit
+      mixpanel.track('TECH_NEWS_CACHE_HIT', getComprehensiveUserProfile(req, {
+        eventType: 'tech_news_cache_hit',
+        cacheAge: now - techNewsCache.timestamp
+      }));
+
+      res.set({
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, max-age=600', // Cache for 10 minutes
+        'X-Cache': 'HIT',
+        'X-Cache-Age': Math.floor((now - techNewsCache.timestamp) / 1000)
+      });
+
+      return res.json(techNewsCache.data);
+    }
+
+    console.log('Fetching tech news from Hacker News API');
+    
+    // Fetch top stories from Hacker News
+    // Hacker News API: https://github.com/HackerNews/API
+    const topStoriesResponse = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
+    if (!topStoriesResponse.ok) {
+      throw new Error(`Hacker News API returned status ${topStoriesResponse.status}`);
+    }
+    
+    const topStoryIds = await topStoriesResponse.json();
+    // Get top 10 stories
+    const storyIds = topStoryIds.slice(0, 10);
+    
+    // Fetch details for each story in parallel
+    const storyPromises = storyIds.map(id => 
+      fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json())
+    );
+    
+    const stories = await Promise.all(storyPromises);
+    
+    // Filter and format stories
+    const formattedStories = stories
+      .filter(story => story && story.title && story.url) // Only stories with URLs
+      .slice(0, 6) // Limit to 6 stories for display
+      .map(story => ({
+        id: story.id,
+        title: story.title,
+        url: story.url,
+        score: story.score || 0,
+        author: story.by || 'unknown',
+        time: story.time ? new Date(story.time * 1000).toISOString() : null,
+        comments: story.descendants || 0,
+        domain: story.url ? new URL(story.url).hostname.replace('www.', '') : null
+      }));
+
+    const responseData = {
+      timestamp: new Date().toISOString(),
+      source: 'Hacker News',
+      stories: formattedStories,
+      totalStories: formattedStories.length
+    };
+
+    // Update cache
+    techNewsCache.data = responseData;
+    techNewsCache.timestamp = now;
+
+    // Track successful response
+    mixpanel.track('TECH_NEWS_SUCCESS', getComprehensiveUserProfile(req, {
+      eventType: 'tech_news_success',
+      storiesCount: formattedStories.length,
+      responseTime: Date.now() - startTime,
+      cacheHit: false
+    }));
+
+    res.set({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=600', // Cache for 10 minutes
+      'X-Cache': 'MISS',
+      'X-Data-Source': 'Hacker News API'
+    });
+
+    res.json(responseData);
+
+  } catch (error) {
+    console.error('Tech news error:', error);
+
+    // Track error
+    mixpanel.track('TECH_NEWS_ERROR', getComprehensiveUserProfile(req, {
+      eventType: 'tech_news_error',
+      errorType: error.name,
+      errorMessage: error.message
+    }));
+
+    // Return cached data if available, even if expired
+    if (techNewsCache.data) {
+      console.log('Returning stale cache due to error');
+      res.set({
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Cache': 'STALE',
+        'X-Cache-Age': Math.floor((Date.now() - techNewsCache.timestamp) / 1000)
+      });
+      return res.json(techNewsCache.data);
+    }
+
+    res.status(500).json({
+      error: 'Failed to fetch tech news',
       message: error.message,
       timestamp: new Date().toISOString()
     });
