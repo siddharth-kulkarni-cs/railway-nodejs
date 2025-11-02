@@ -1032,11 +1032,17 @@ router.get('/api/reverse-geocode', async (req, res) => {
 // ------------------------------
 router.get('/api/status/aggregate', async (req, res) => {
   try {
+    // Support cache refresh via query parameter
+    if (req.query.refresh === 'true') {
+      statusAggregator.clearCache();
+    }
+
     // Track status aggregation request with comprehensive profiling
     mixpanel.track('STATUS_AGGREGATION_REQUEST', getComprehensiveUserProfile(req, {
       eventType: 'status_aggregation',
       endpoint: 'aggregate',
-      requestedServices: req.query.services || 'all'
+      requestedServices: req.query.services || 'all',
+      refreshRequested: req.query.refresh === 'true'
     }));
 
     const data = await statusAggregator.getAggregatedStatus();

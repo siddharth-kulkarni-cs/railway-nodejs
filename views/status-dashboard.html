@@ -746,16 +746,16 @@
           <div class="availability-label">Overall System Availability</div>
           <div class="availability-metrics">
             <div class="metric-item">
-              <div class="metric-value" id="uptime-30d">99.9%</div>
-              <div class="metric-label">30-Day Uptime</div>
+              <div class="metric-value" id="uptime-30d">100.0%</div>
+              <div class="metric-label">Component Uptime</div>
             </div>
             <div class="metric-item">
-              <div class="metric-value" id="mttr">2.1m</div>
-              <div class="metric-label">Avg MTTR</div>
+              <div class="metric-value" id="mttr">None</div>
+              <div class="metric-label">Active Incidents</div>
             </div>
             <div class="metric-item">
-              <div class="metric-value" id="incidents-month">3</div>
-              <div class="metric-label">Incidents/Month</div>
+              <div class="metric-value" id="incidents-month">0</div>
+              <div class="metric-label">Total Issues</div>
             </div>
           </div>
         </div>
@@ -806,28 +806,56 @@
         async loadStatusData() {
           try {
             this.showLoading();
-            const response = await fetch('/api/status/aggregate');
+            const response = await fetch('/api/status/aggregate', {
+              cache: 'default',
+              headers: {
+                'Accept': 'application/json'
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
+
+            // Validate response structure
+            if (!data || !data.services || !data.summary) {
+              throw new Error('Invalid response format from API');
+            }
+
             this.renderDashboard(data);
           } catch (error) {
             console.error('Error loading status data:', error);
-            this.showError('Failed to load status data. Please try again later.');
+            this.showError(`Failed to load status data: ${error.message}. Please try again later.`);
           }
         }
 
         async refreshData() {
+          const originalHTML = this.refreshBtn.innerHTML;
           this.refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
           this.refreshBtn.disabled = true;
 
           try {
-            const response = await fetch('/api/status/aggregate?t=' + Date.now());
+            // Add cache-busting parameter and request fresh data
+            const response = await fetch(`/api/status/aggregate?refresh=true&t=${Date.now()}`, {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache'
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
             this.renderDashboard(data);
           } catch (error) {
             console.error('Error refreshing data:', error);
-            this.showError('Failed to refresh data.');
+            this.showError('Failed to refresh data. Please try again.');
           } finally {
-            this.refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            this.refreshBtn.innerHTML = originalHTML;
             this.refreshBtn.disabled = false;
           }
         }
@@ -842,18 +870,43 @@
         updateAvailabilityOverview(data) {
           const availabilityOverview = document.getElementById('availability-overview');
 
-          // Calculate overall availability percentage
+          // Calculate overall availability percentage based on operational services
           const totalServices = data.summary.total_services;
           const operationalServices = data.summary.operational;
-          const availabilityPercent = totalServices > 0 ? ((operationalServices / totalServices) * 100).toFixed(1) : '100.0';
+          const availabilityPercent = totalServices > 0 
+            ? ((operationalServices / totalServices) * 100).toFixed(1) 
+            : '0.0';
 
           // Update availability percentage
           document.getElementById('availability-percentage').textContent = `${availabilityPercent}%`;
 
-          // Update metrics (simulated for demo)
-          document.getElementById('uptime-30d').textContent = '99.9%';
-          document.getElementById('mttr').textContent = '2.1m';
-          document.getElementById('incidents-month').textContent = data.summary.outages + data.summary.degraded;
+          // Calculate real metrics from actual data
+          let totalIncidents = 0;
+          let totalComponents = 0;
+          let operationalComponents = 0;
+
+          Object.values(data.services).forEach(service => {
+            // Count active incidents (not resolved)
+            const activeIncidents = (service.incidents || []).filter(incident => 
+              incident.status !== 'resolved' && incident.status !== 'completed'
+            ).length;
+            totalIncidents += activeIncidents;
+
+            // Count components and operational components
+            const components = service.components || [];
+            totalComponents += components.length;
+            operationalComponents += components.filter(c => c.status === 'operational').length;
+          });
+
+          // Calculate component uptime percentage
+          const componentUptime = totalComponents > 0 
+            ? ((operationalComponents / totalComponents) * 100).toFixed(1)
+            : '100.0';
+
+          // Update metrics with real data
+          document.getElementById('uptime-30d').textContent = `${componentUptime}%`;
+          document.getElementById('mttr').textContent = totalIncidents > 0 ? `${totalIncidents} active` : 'None';
+          document.getElementById('incidents-month').textContent = totalIncidents;
 
           // Show the overview
           availabilityOverview.style.display = 'block';
@@ -930,12 +983,15 @@
                   </div>
                 </div>
                 <div class="components-list">
-                  ${service.components.slice(0, 3).map(component =>
-                    this.createComponentItem(component)
-                  ).join('')}
-                  ${service.components.length > 3 ?
+                  ${service.components.length > 0 
+                    ? service.components.slice(0, 5).map(component =>
+                        this.createComponentItem(component)
+                      ).join('')
+                    : '<div class="component-item"><span class="component-name">No component data available</span></div>'
+                  }
+                  ${service.components.length > 5 ?
                     `<div class="component-item">
-                      <span class="component-name">... and ${service.components.length - 3} more components</span>
+                      <span class="component-name"><i class="fas fa-ellipsis-h"></i> ${service.components.length - 5} more components</span>
                       <span class="component-status ${statusClass}">
                         <i class="${statusIcon}"></i>
                       </span>
@@ -1007,19 +1063,27 @@
         }
 
         calculateUptimePercentage(service) {
-          // Simulate uptime calculation based on service status
-          const baseUptime = 99.5;
-          const statusPenalty = {
-            'operational': 0,
-            'degraded_performance': -0.5,
-            'partial_outage': -2.0,
-            'major_outage': -5.0,
-            'under_maintenance': -0.1,
-            'error': -1.0
-          };
+          // Calculate uptime based on actual component statuses
+          const components = service.components || [];
+          
+          if (components.length === 0) {
+            // If no components, base on overall status
+            const statusUptime = {
+              'operational': 100.0,
+              'degraded_performance': 95.0,
+              'partial_outage': 80.0,
+              'major_outage': 50.0,
+              'under_maintenance': 99.0,
+              'error': 0.0
+            };
+            return (statusUptime[service.overall_status] || 0.0).toFixed(1);
+          }
 
-          const penalty = statusPenalty[service.overall_status] || -1.0;
-          return Math.max(95.0, baseUptime + penalty).toFixed(1);
+          // Calculate percentage of operational components
+          const operationalCount = components.filter(c => c.status === 'operational').length;
+          const uptimePercent = (operationalCount / components.length) * 100;
+          
+          return Math.max(0.0, Math.min(100.0, uptimePercent)).toFixed(1);
         }
 
         getComponentStats(components) {
@@ -1040,27 +1104,37 @@
         }
 
         getServiceTrend(service) {
-          // Simulate trend based on incidents and current status
-          const hasRecentIncidents = service.incidents && service.incidents.length > 0;
-          const isDegraded = ['degraded_performance', 'partial_outage', 'major_outage'].includes(service.overall_status);
+          // Determine trend based on actual incidents and current status
+          const activeIncidents = (service.incidents || []).filter(incident => {
+            const status = (incident.status || '').toLowerCase();
+            return status !== 'resolved' && status !== 'completed' && status !== 'postmortem';
+          });
 
-          if (isDegraded && hasRecentIncidents) {
+          const hasActiveIncidents = activeIncidents.length > 0;
+          const isDegraded = ['degraded_performance', 'partial_outage', 'major_outage', 'error'].includes(service.overall_status);
+
+          // If service is degraded and has active incidents, it's degrading
+          if (isDegraded && hasActiveIncidents) {
             return {
               class: 'degrading',
               icon: 'fas fa-arrow-down',
-              text: 'Degrading'
+              text: 'Issues'
             };
-          } else if (!isDegraded && !hasRecentIncidents) {
+          } 
+          // If service is operational and has no active incidents, it's stable/good
+          else if (service.overall_status === 'operational' && !hasActiveIncidents) {
             return {
               class: 'improving',
-              icon: 'fas fa-arrow-up',
-              text: 'Improving'
+              icon: 'fas fa-check-circle',
+              text: 'Stable'
             };
-          } else {
+          } 
+          // Otherwise, it's stable but with some issues
+          else {
             return {
               class: 'stable',
               icon: 'fas fa-minus',
-              text: 'Stable'
+              text: 'Monitoring'
             };
           }
         }
