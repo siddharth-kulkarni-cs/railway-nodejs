@@ -578,13 +578,6 @@
             <div id="newsContainer" class="row">
               <!-- News items will be inserted here dynamically -->
             </div>
-            
-            <div class="mt-3 text-center">
-              <small class="text-muted">
-                <i class="fas fa-info-circle mr-1"></i>
-                News powered by <a href="https://news.ycombinator.com" target="_blank" rel="noopener noreferrer">Hacker News</a>. Updates every 10 minutes.
-              </small>
-            </div>
           </div>
         </div>
       </div>
@@ -1773,21 +1766,6 @@
             ${escapeHtml(story.domain)}
           </div>
         ` : ''}
-        <div class="news-card-meta">
-          <div>
-            <span class="news-card-score">
-              <i class="fas fa-arrow-up"></i>
-              ${story.score || 0}
-            </span>
-            <span class="news-card-comments ml-2">
-              <i class="fas fa-comments"></i>
-              ${story.comments || 0}
-            </span>
-          </div>
-          <div class="news-card-author">
-            by ${escapeHtml(story.author)} • ${timeAgo}
-          </div>
-        </div>
       `;
 
       return card;
