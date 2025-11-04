@@ -1229,7 +1229,7 @@ router.get('/api/tech-news', async (req, res) => {
     // Filter and format stories
     const formattedStories = stories
       .filter(story => story && story.title && story.url) // Only stories with URLs
-      .slice(0, 6) // Limit to 6 stories for display
+      // .slice(0, 6) // Limit to 6 stories for display
       .map(story => ({
         id: story.id,
         title: story.title,
