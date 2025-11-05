@@ -53,6 +53,29 @@ describe('API Routes', () => {
     expect(secondResponse.status).toBe(200);
   });
 
+  // Test tech news API (skip in CI environments where network is not available)
+  test.skip('GET /api/tech-news should return 200 and JSON with aggregated news', async () => {
+    const response = await request(app).get('/api/tech-news');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toHaveProperty('timestamp');
+    expect(response.body).toHaveProperty('sources');
+    expect(response.body).toHaveProperty('stories');
+    expect(Array.isArray(response.body.stories)).toBe(true);
+    expect(Array.isArray(response.body.sources)).toBe(true);
+    expect(response.body.sources).toContain('Hacker News');
+    expect(response.body.sources).toContain('Lobsters');
+    expect(response.body.sources).toContain('Dev.to');
+  });
+
+  // Test tech news with refresh parameter (skip in CI environments where network is not available)
+  test.skip('GET /api/tech-news?refresh=true should return fresh data', async () => {
+    const response = await request(app).get('/api/tech-news?refresh=true');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.headers['x-cache']).toBe('MISS'); // Should be a cache miss on refresh
+  });
+
   // Test 404 handler
   test('Non-existent route should return 404', async () => {
     const response = await request(app).get('/non-existent-route');

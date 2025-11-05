@@ -370,65 +370,214 @@
         z-index: 10;
       }
       
-      /* Tech News Styles */
+      /* Enhanced Tech News Styles */
+      .news-section-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        padding: 2rem 0;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .news-section-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: float 6s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+        33% { transform: translate(-50%, -50%) rotate(120deg); }
+        66% { transform: translate(-50%, -50%) rotate(240deg); }
+      }
+
+      .news-section-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      .news-section-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .news-stats {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+      }
+
+      .news-stat {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .news-stat:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      }
+
+      .news-stat-number {
+        font-size: 1.8rem;
+        font-weight: 700;
+        display: block;
+        color: #fff;
+      }
+
+      .news-stat-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-top: 0.25rem;
+      }
+
+      .news-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+      }
+
       .news-card {
-        background-color: var(--card-bg);
+        background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255,255,255,0.1) 100%);
         border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
+        border-radius: 16px;
+        padding: 0;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         height: 100%;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 2px 10px var(--shadow-color);
+        position: relative;
       }
-      
+
+      .news-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+      }
+
       .news-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 15px var(--shadow-color);
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 20px 40px var(--shadow-color);
         border-color: var(--primary-color);
       }
-      
-      .news-card-header {
+
+      .news-card:hover::before {
+        transform: scaleX(1);
+      }
+
+      .news-card-content {
+        padding: 2.5rem 1.5rem 1.5rem 1.5rem;
+        flex: 1;
         display: flex;
-        justify-content: space-between;
-        align-items: start;
+        flex-direction: column;
+      }
+
+      .news-card-source-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 15px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        z-index: 2;
+      }
+
+      .news-card-source-hackernews {
+        background: linear-gradient(135deg, #ff6600, #ff8533);
+        color: white;
+      }
+
+      .news-card-source-lobsters {
+        background: linear-gradient(135deg, #ac130d, #d1342f);
+        color: white;
+      }
+
+      .news-card-source-devto {
+        background: linear-gradient(135deg, #0a0a0a, #2d2d2d);
+        color: white;
+      }
+
+      .news-card-header {
         margin-bottom: 1rem;
       }
-      
+
       .news-card-title {
-        font-size: 1.1rem;
-        font-weight: 600;
+        font-size: 1.2rem;
+        font-weight: 700;
         color: var(--primary-color);
-        margin: 0;
-        flex: 1;
+        margin: 0 0 0.5rem 0;
         line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-clamp: 3;
       }
-      
+
       .news-card-title a {
-        color: var(--primary-color);
+        color: inherit;
         text-decoration: none;
-        transition: color 0.2s ease;
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
-      
+
       .news-card-title a:hover {
-        color: var(--secondary-color);
-        text-decoration: underline;
+        transform: translateX(2px);
+        -webkit-text-fill-color: var(--secondary-color);
       }
-      
+
       .news-card-domain {
+        display: inline-flex;
+        align-items: center;
         font-size: 0.85rem;
         color: var(--text-muted);
-        margin-top: 0.5rem;
-        display: flex;
-        align-items: center;
+        margin-bottom: 1rem;
+        padding: 0.25rem 0.5rem;
+        background-color: var(--light-bg);
+        border-radius: 6px;
+        font-weight: 500;
       }
-      
+
       .news-card-domain i {
         margin-right: 0.25rem;
         font-size: 0.75rem;
+        color: var(--primary-color);
       }
-      
+
       .news-card-meta {
         display: flex;
         justify-content: space-between;
@@ -438,32 +587,181 @@
         border-top: 1px solid var(--border-color);
         font-size: 0.85rem;
         color: var(--text-muted);
+        gap: 1rem;
       }
-      
-      .news-card-score {
+
+      .news-card-meta-item {
         display: inline-flex;
         align-items: center;
-        background-color: var(--light-bg);
+        gap: 0.25rem;
+      }
+
+      .news-card-score {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
         padding: 0.25rem 0.5rem;
         border-radius: 12px;
         font-weight: 600;
-        color: var(--primary-color);
+        font-size: 0.8rem;
       }
-      
+
       .news-card-score i {
-        margin-right: 0.25rem;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
       }
-      
+
       .news-card-comments {
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      .news-card-comments i {
+        font-size: 0.7rem;
+      }
+
+      .news-card-time {
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      .news-card-time i {
+        font-size: 0.7rem;
+      }
+
+      .news-card-author {
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      .news-card-author i {
+        font-size: 0.7rem;
+      }
+
+      .news-loading {
+        text-align: center;
+        padding: 3rem 2rem;
+      }
+
+      .news-loading-spinner {
+        width: 3rem;
+        height: 3rem;
+        border: 4px solid var(--border-color);
+        border-top: 4px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .news-loading-text {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .news-loading-subtext {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        opacity: 0.7;
+      }
+
+      .news-error {
+        background: linear-gradient(135deg, #fff5f5, #fed7d7);
+        border: 1px solid #feb2b2;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        margin: 2rem 0;
+      }
+
+      .news-error-icon {
+        font-size: 3rem;
+        color: #e53e3e;
+        margin-bottom: 1rem;
+      }
+
+      .news-error-title {
+        color: #c53030;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+
+      .news-error-text {
+        color: #744210;
+        margin-bottom: 1rem;
+      }
+
+      .news-error-retry {
+        background: linear-gradient(135deg, #e53e3e, #c53030);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .news-error-retry:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(229, 62, 62, 0.3);
+      }
+
+      .news-refresh-btn {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
         display: inline-flex;
         align-items: center;
-        color: var(--text-muted);
+        gap: 0.5rem;
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
       }
-      
-      .news-card-comments i {
-        margin-right: 0.25rem;
-        font-size: 0.75rem;
+
+      .news-refresh-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+      }
+
+      .news-refresh-btn.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+
+      .news-refresh-btn.loading i {
+        animation: spin 1s linear infinite;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .news-section-title {
+          font-size: 2rem;
+        }
+
+        .news-stats {
+          gap: 1rem;
+        }
+
+        .news-container {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+
+        .news-card-content {
+          padding: 2.25rem 1.25rem 1.25rem 1.25rem;
+        }
+
+        .news-card-title {
+          font-size: 1.1rem;
+        }
       }
       
       .news-card-author {
@@ -543,42 +841,69 @@
         <p class="lead">Explore our collection of cutting-edge tools and applications</p>
       </div>
     </div>
-    <!-- Tech News Section -->
+    <!-- Enhanced Tech News Section -->
     <section id="tech-news" class="mb-5">
-      <h2 class="text-center mb-4">
-        <i class="fas fa-newspaper mr-2"></i>Latest Technology News & Articles
-        <span class="badge badge-danger ml-2" style="font-size: 0.5em; vertical-align: middle;">NEW</span>
-      </h2>
-      <div class="row justify-content-center">
-        <div class="col-md-10">
-          <div class="search-card">
-            <div class="d-flex align-items-center mb-3">
-              <i class="fas fa-rss fa-2x text-primary mr-3"></i>
-              <h3 class="mb-0">Stay Updated with Tech</h3>
-              <button id="refreshNewsBtn" class="btn btn-sm btn-outline-primary ml-auto" title="Refresh news">
-                <i class="fas fa-sync-alt"></i> Refresh
-              </button>
+      <div class="news-section-header">
+        <div class="container">
+          <h1 class="news-section-title text-center">
+            <i class="fas fa-newspaper mr-3"></i>Tech News Hub
+          </h1>
+          <p class="news-section-subtitle text-center">
+            Stay updated with the latest technology news and articles from top sources
+          </p>
+
+          <!-- News Stats -->
+          <div id="newsStats" class="news-stats" style="display: none;">
+            <div class="news-stat">
+              <span id="totalStories" class="news-stat-number">0</span>
+              <div class="news-stat-label">Stories</div>
             </div>
-            
-            <!-- Loading State -->
-            <div id="newsLoading" class="text-center py-4" style="display: none;">
-              <div class="spinner-border text-primary" role="status">
-                <span class="sr-only">Loading...</span>
-              </div>
-              <p class="mt-2 text-muted">Fetching latest tech news...</p>
+            <div class="news-stat">
+              <span id="sourcesActive" class="news-stat-number">0</span>
+              <div class="news-stat-label">Sources</div>
             </div>
-            
-            <!-- Error State -->
-            <div id="newsError" class="alert alert-warning" style="display: none;">
-              <i class="fas fa-exclamation-triangle mr-2"></i>
-              <span id="newsErrorText">Failed to load news. Please try again later.</span>
-            </div>
-            
-            <!-- News Container -->
-            <div id="newsContainer" class="row">
-              <!-- News items will be inserted here dynamically -->
+            <div class="news-stat">
+              <span id="lastUpdated" class="news-stat-number">--</span>
+              <div class="news-stat-label">Last Updated</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-fire text-warning mr-2"></i>
+            <span class="font-weight-bold">Trending Now</span>
+          </div>
+          <button id="refreshNewsBtn" class="news-refresh-btn" title="Refresh news">
+            <i class="fas fa-sync-alt"></i>
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        <!-- Loading State -->
+        <div id="newsLoading" class="news-loading" style="display: none;">
+          <div class="news-loading-spinner"></div>
+          <div class="news-loading-text">Discovering fresh tech stories...</div>
+          <div class="news-loading-subtext">Aggregating from Hacker News, Lobsters, and Dev.to</div>
+        </div>
+
+        <!-- Error State -->
+        <div id="newsError" class="news-error" style="display: none;">
+          <div class="news-error-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="news-error-title">Oops! News feed unavailable</div>
+          <div id="newsErrorText" class="news-error-text">We couldn't fetch the latest tech news. Please check your connection and try again.</div>
+          <button id="retryNewsBtn" class="news-error-retry">
+            <i class="fas fa-redo mr-2"></i>Try Again
+          </button>
+        </div>
+
+        <!-- News Container -->
+        <div id="newsContainer" class="news-container">
+          <!-- News items will be inserted here dynamically -->
         </div>
       </div>
     </section>
@@ -588,15 +913,11 @@
         <h2 class="text-center mb-4">Featured Product</h2>
         <section id="joke-generator" class="mb-5">
           <h2 class="text-center mb-5">
-            AI Joke Generator 
-            <span class="badge badge-danger ml-2" style="font-size: 0.5em; vertical-align: middle; animation: pulse 2s infinite;">NEW</span>
+            AI Joke Generator
           </h2>
                      <div class="row justify-content-center">
              <div class="col-md-8">
                <div class="search-card" style="position: relative; overflow: visible;">
-                 <span class="new-feature-badge">
-                   <i class="fas fa-sparkles mr-1"></i>NEW
-                 </span>
                  <div class="d-flex align-items-center mb-3">
                    <i class="fas fa-laugh-beam fa-2x text-warning mr-3"></i>
                    <h2 class="mb-0">Get a Joke on Any Topic!</h2>
@@ -1683,13 +2004,18 @@
           throw new Error('No news stories available');
         }
 
+        // Update stats display
+        updateNewsStats(data);
+
         // Track successful news fetch
         if (window.trackEvent) {
           window.trackEvent('Tech News Loaded', {
             stories_count: data.stories.length,
-            source: data.source,
+            sources_count: Object.keys(data.sourcesFetched || {}).length,
+            sources_active: Object.values(data.sourcesFetched || {}).filter(Boolean).length,
             force_refresh: forceRefresh,
-            success: true
+            success: true,
+            source_breakdown: data.sourceBreakdown
           });
         }
 
@@ -1737,10 +2063,7 @@
 
       stories.forEach(story => {
         const storyCard = createNewsCard(story);
-        const colDiv = document.createElement('div');
-        colDiv.className = 'col-md-6 mb-3';
-        colDiv.appendChild(storyCard);
-        container.appendChild(colDiv);
+        container.appendChild(storyCard);
       });
     }
 
@@ -1751,21 +2074,61 @@
       // Format time
       const timeAgo = formatTimeAgo(story.time);
 
+      // Determine source badge class
+      const sourceClass = story.source === 'Hacker News' ? 'news-card-source-hackernews' :
+                         story.source === 'Lobsters' ? 'news-card-source-lobsters' :
+                         story.source === 'Dev.to' ? 'news-card-source-devto' : '';
+
+      // Source icon
+      const sourceIcon = story.source === 'Hacker News' ? 'fas fa-hacker-news' :
+                        story.source === 'Lobsters' ? 'fas fa-lobster' :
+                        story.source === 'Dev.to' ? 'fab fa-dev' : 'fas fa-newspaper';
+
       card.innerHTML = `
-        <div class="news-card-header">
-          <h4 class="news-card-title">
-            <a href="${escapeHtml(story.url)}" target="_blank" rel="noopener noreferrer" 
-               onclick="if(window.trackEvent) window.trackEvent('Tech News Clicked', {story_id: ${story.id}, story_title: '${escapeHtml(story.title).substring(0, 50)}'});">
-              ${escapeHtml(story.title)}
-            </a>
-          </h4>
+        <div class="news-card-source-badge ${sourceClass}">
+          <i class="${sourceIcon} mr-1"></i>${story.source}
         </div>
-        ${story.domain ? `
-          <div class="news-card-domain">
-            <i class="fas fa-globe"></i>
-            ${escapeHtml(story.domain)}
+        <div class="news-card-content">
+          <div class="news-card-header">
+            <h4 class="news-card-title">
+              <a href="${escapeHtml(story.url)}" target="_blank" rel="noopener noreferrer"
+                 onclick="if(window.trackEvent) window.trackEvent('Tech News Clicked', {
+                   story_id: '${story.id}',
+                   story_title: '${escapeHtml(story.title).substring(0, 50)}',
+                   source: '${story.source}',
+                   score: ${story.score || 0}
+                 });">
+                ${escapeHtml(story.title)}
+              </a>
+            </h4>
           </div>
-        ` : ''}
+          ${story.domain ? `
+            <div class="news-card-domain">
+              <i class="fas fa-globe"></i>
+              ${escapeHtml(story.domain)}
+            </div>
+          ` : ''}
+          <div class="news-card-meta">
+            <div class="news-card-meta-item news-card-score">
+              <i class="fas fa-arrow-up"></i>
+              ${story.score || 0}
+            </div>
+            <div class="news-card-meta-item news-card-comments">
+              <i class="fas fa-comments"></i>
+              ${story.comments || 0}
+            </div>
+            <div class="news-card-meta-item news-card-time">
+              <i class="fas fa-clock"></i>
+              ${timeAgo}
+            </div>
+            ${story.author && story.author !== 'unknown' ? `
+              <div class="news-card-meta-item news-card-author">
+                <i class="fas fa-user"></i>
+                ${escapeHtml(story.author)}
+              </div>
+            ` : ''}
+          </div>
+        </div>
       `;
 
       return card;
@@ -1773,7 +2136,7 @@
 
     function formatTimeAgo(isoString) {
       if (!isoString) return 'unknown';
-      
+
       const now = new Date();
       const time = new Date(isoString);
       const diffMs = now - time;
@@ -1785,8 +2148,38 @@
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffHours < 24) return `${diffHours}h ago`;
       if (diffDays < 7) return `${diffDays}d ago`;
-      
+
       return time.toLocaleDateString();
+    }
+
+    function updateNewsStats(data) {
+      const statsDiv = document.getElementById('newsStats');
+      const totalStoriesEl = document.getElementById('totalStories');
+      const sourcesActiveEl = document.getElementById('sourcesActive');
+      const lastUpdatedEl = document.getElementById('lastUpdated');
+
+      if (!statsDiv || !totalStoriesEl || !sourcesActiveEl || !lastUpdatedEl) return;
+
+      // Update stats
+      totalStoriesEl.textContent = data.stories?.length || 0;
+      sourcesActiveEl.textContent = Object.values(data.sourcesFetched || {}).filter(Boolean).length;
+
+      // Format last updated time
+      const now = new Date();
+      const updated = new Date(data.timestamp);
+      const diffMs = now - updated;
+      const diffMins = Math.floor(diffMs / 60000);
+
+      if (diffMins < 1) {
+        lastUpdatedEl.textContent = 'now';
+      } else if (diffMins < 60) {
+        lastUpdatedEl.textContent = `${diffMins}m`;
+      } else {
+        lastUpdatedEl.textContent = updated.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      }
+
+      // Show stats
+      statsDiv.style.display = 'flex';
     }
 
     // Escape HTML to prevent XSS
@@ -1800,11 +2193,19 @@
     document.addEventListener('DOMContentLoaded', function() {
       // Fetch news when page loads
       fetchTechNews();
-      
+
       // Add refresh button listener
       const refreshBtn = document.getElementById('refreshNewsBtn');
       if (refreshBtn) {
         refreshBtn.addEventListener('click', function() {
+          fetchTechNews(true);
+        });
+      }
+
+      // Add retry button listener
+      const retryBtn = document.getElementById('retryNewsBtn');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', function() {
           fetchTechNews(true);
         });
       }

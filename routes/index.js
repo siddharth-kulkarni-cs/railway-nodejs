@@ -1163,13 +1163,118 @@ router.get('/api/status/:service', async (req, res) => {
 });
 
 // ------------------------------
-// Tech News API
+// Tech News API - Multi-source aggregation
 // ------------------------------
+
+// Helper function to fetch Hacker News stories
+async function fetchHackerNewsStories() {
+  try {
+    console.log('Fetching from Hacker News...');
+    const topStoriesResponse = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
+    if (!topStoriesResponse.ok) {
+      throw new Error(`Hacker News API returned status ${topStoriesResponse.status}`);
+    }
+
+    const topStoryIds = await topStoriesResponse.json();
+    const storyIds = topStoryIds.slice(0, 8); // Get top 8 stories
+
+    const storyPromises = storyIds.map(id =>
+      fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json())
+    );
+
+    const stories = await Promise.all(storyPromises);
+
+    return stories
+      .filter(story => story && story.title && story.url)
+      .filter(story => {
+        const excludedKeywords = ['tell hn', 'ask hn', 'show hn', 'jobs'];
+        const title = story.title.toLowerCase();
+        return !excludedKeywords.some(keyword => title.includes(keyword));
+      })
+      .map(story => ({
+        id: `hn-${story.id}`,
+        title: story.title,
+        url: story.url,
+        score: story.score || 0,
+        author: story.by || 'unknown',
+        time: story.time ? new Date(story.time * 1000).toISOString() : null,
+        comments: story.descendants || 0,
+        domain: story.url ? new URL(story.url).hostname.replace('www.', '') : null,
+        source: 'Hacker News',
+        sourceType: 'community'
+      }));
+  } catch (error) {
+    console.error('Hacker News fetch error:', error);
+    return [];
+  }
+}
+
+// Helper function to fetch Lobsters stories
+async function fetchLobstersStories() {
+  try {
+    console.log('Fetching from Lobsters...');
+    const response = await fetch('https://lobste.rs/hottest.json');
+    if (!response.ok) {
+      throw new Error(`Lobsters API returned status ${response.status}`);
+    }
+
+    const stories = await response.json();
+    return stories
+      .filter(story => story && story.title && story.url)
+      .slice(0, 6) // Get top 6 stories
+      .map(story => ({
+        id: `lobsters-${story.short_id}`,
+        title: story.title,
+        url: story.url,
+        score: story.score || 0,
+        author: story.submitter_user?.username || 'unknown',
+        time: story.created_at,
+        comments: story.comment_count || 0,
+        domain: story.url ? new URL(story.url).hostname.replace('www.', '') : null,
+        source: 'Lobsters',
+        sourceType: 'community'
+      }));
+  } catch (error) {
+    console.error('Lobsters fetch error:', error);
+    return [];
+  }
+}
+
+// Helper function to fetch Dev.to articles
+async function fetchDevToArticles() {
+  try {
+    console.log('Fetching from Dev.to...');
+    const response = await fetch('https://dev.to/api/articles?tag=javascript&tag=python&tag=webdev&tag=ai&tag=programming&per_page=5');
+    if (!response.ok) {
+      throw new Error(`Dev.to API returned status ${response.status}`);
+    }
+
+    const articles = await response.json();
+    return articles
+      .filter(article => article && article.title && article.url)
+      .map(article => ({
+        id: `devto-${article.id}`,
+        title: article.title,
+        url: article.url,
+        score: article.positive_reactions_count || 0,
+        author: article.user?.name || article.user?.username || 'unknown',
+        time: article.created_at,
+        comments: article.comments_count || 0,
+        domain: 'dev.to',
+        source: 'Dev.to',
+        sourceType: 'blog'
+      }));
+  } catch (error) {
+    console.error('Dev.to fetch error:', error);
+    return [];
+  }
+}
+
 router.get('/api/tech-news', async (req, res) => {
   try {
     const startTime = Date.now();
     const { refresh } = req.query;
-    
+
     // Track tech news request
     mixpanel.track('TECH_NEWS_REQUEST', getComprehensiveUserProfile(req, {
       eventType: 'tech_news_request',
@@ -1186,10 +1291,10 @@ router.get('/api/tech-news', async (req, res) => {
 
     // Check cache
     const now = Date.now();
-    if (techNewsCache.data && techNewsCache.timestamp && 
+    if (techNewsCache.data && techNewsCache.timestamp &&
         (now - techNewsCache.timestamp) < techNewsCache.CACHE_DURATION) {
       console.log('Tech news cache hit');
-      
+
       // Track cache hit
       mixpanel.track('TECH_NEWS_CACHE_HIT', getComprehensiveUserProfile(req, {
         eventType: 'tech_news_cache_hit',
@@ -1206,46 +1311,59 @@ router.get('/api/tech-news', async (req, res) => {
       return res.json(techNewsCache.data);
     }
 
-    console.log('Fetching tech news from Hacker News API');
-    
-    // Fetch top stories from Hacker News
-    // Hacker News API: https://github.com/HackerNews/API
-    const topStoriesResponse = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
-    if (!topStoriesResponse.ok) {
-      throw new Error(`Hacker News API returned status ${topStoriesResponse.status}`);
-    }
-    
-    const topStoryIds = await topStoriesResponse.json();
-    // Get top 10 stories
-    const storyIds = topStoryIds.slice(0, 10);
-    
-    // Fetch details for each story in parallel
-    const storyPromises = storyIds.map(id => 
-      fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json())
-    );
-    
-    const stories = await Promise.all(storyPromises);
-    
-    // Filter and format stories
-    const formattedStories = stories
-      .filter(story => story && story.title && story.url) // Only stories with URLs
-      // .slice(0, 6) // Limit to 6 stories for display
-      .map(story => ({
-        id: story.id,
-        title: story.title,
-        url: story.url,
-        score: story.score || 0,
-        author: story.by || 'unknown',
-        time: story.time ? new Date(story.time * 1000).toISOString() : null,
-        comments: story.descendants || 0,
-        domain: story.url ? new URL(story.url).hostname.replace('www.', '') : null
-      }));
+    console.log('Fetching tech news from multiple sources...');
+
+    // Fetch from all sources in parallel
+    const [hackerNewsStories, lobstersStories, devToArticles] = await Promise.allSettled([
+      fetchHackerNewsStories(),
+      fetchLobstersStories(),
+      fetchDevToArticles()
+    ]);
+
+    // Combine results and handle failures gracefully
+    const allStories = [
+      ...(hackerNewsStories.status === 'fulfilled' ? hackerNewsStories.value : []),
+      ...(lobstersStories.status === 'fulfilled' ? lobstersStories.value : []),
+      ...(devToArticles.status === 'fulfilled' ? devToArticles.value : [])
+    ];
+
+    // Remove duplicates based on URL
+    const seenUrls = new Set();
+    const uniqueStories = allStories.filter(story => {
+      if (seenUrls.has(story.url)) {
+        return false;
+      }
+      seenUrls.add(story.url);
+      return true;
+    });
+
+    // Sort by time (newest first), then by score
+    const sortedStories = uniqueStories
+      .sort((a, b) => {
+        const timeA = new Date(a.time || 0).getTime();
+        const timeB = new Date(b.time || 0).getTime();
+        if (timeA !== timeB) {
+          return timeB - timeA; // Newest first
+        }
+        return (b.score || 0) - (a.score || 0); // Higher score first
+      })
+      .slice(0, 12); // Limit to 12 total stories
 
     const responseData = {
       timestamp: new Date().toISOString(),
-      source: 'Hacker News',
-      stories: formattedStories,
-      totalStories: formattedStories.length
+      sources: ['Hacker News', 'Lobsters', 'Dev.to'],
+      sourcesFetched: {
+        'Hacker News': hackerNewsStories.status === 'fulfilled',
+        'Lobsters': lobstersStories.status === 'fulfilled',
+        'Dev.to': devToArticles.status === 'fulfilled'
+      },
+      stories: sortedStories,
+      totalStories: sortedStories.length,
+      sourceBreakdown: {
+        'Hacker News': allStories.filter(s => s.source === 'Hacker News').length,
+        'Lobsters': allStories.filter(s => s.source === 'Lobsters').length,
+        'Dev.to': allStories.filter(s => s.source === 'Dev.to').length
+      }
     };
 
     // Update cache
@@ -1255,16 +1373,18 @@ router.get('/api/tech-news', async (req, res) => {
     // Track successful response
     mixpanel.track('TECH_NEWS_SUCCESS', getComprehensiveUserProfile(req, {
       eventType: 'tech_news_success',
-      storiesCount: formattedStories.length,
+      storiesCount: sortedStories.length,
+      sourcesFetched: Object.values(responseData.sourcesFetched).filter(Boolean).length,
       responseTime: Date.now() - startTime,
-      cacheHit: false
+      cacheHit: false,
+      sourceBreakdown: responseData.sourceBreakdown
     }));
 
     res.set({
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'public, max-age=600', // Cache for 10 minutes
       'X-Cache': 'MISS',
-      'X-Data-Source': 'Hacker News API'
+      'X-Data-Source': 'Multiple Sources (Hacker News, Lobsters, Dev.to)'
     });
 
     res.json(responseData);
