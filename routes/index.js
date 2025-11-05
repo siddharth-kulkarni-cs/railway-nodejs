@@ -1281,6 +1281,194 @@ async function fetchDevToArticles() {
   }
 }
 
+// Helper function to fetch Reddit stories from r/programming and r/technology
+async function fetchRedditStories() {
+  try {
+    console.log('Fetching from Reddit...');
+    const subreddits = ['programming', 'technology'];
+    const allStories = [];
+
+    for (const subreddit of subreddits) {
+      try {
+        const response = await fetch(`https://www.reddit.com/r/${subreddit}/hot.json?limit=5`, {
+          headers: {
+            'User-Agent': 'ContentstackDictionary/1.0'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Reddit API returned status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const posts = data.data?.children || [];
+
+        posts.forEach(post => {
+          const story = post.data;
+          if (story && story.title && story.url && !story.is_self) {
+            allStories.push({
+              id: `reddit-${story.id}`,
+              title: story.title,
+              url: story.url.startsWith('http') ? story.url : `https://reddit.com${story.permalink}`,
+              score: story.ups || 0,
+              author: story.author || 'unknown',
+              time: story.created_utc ? new Date(story.created_utc * 1000).toISOString() : null,
+              comments: story.num_comments || 0,
+              domain: story.domain || 'reddit.com',
+              source: `Reddit r/${subreddit}`,
+              sourceType: 'community'
+            });
+          }
+        });
+      } catch (subredditError) {
+        console.error(`Error fetching r/${subreddit}:`, subredditError);
+      }
+    }
+
+    return allStories;
+  } catch (error) {
+    console.error('Reddit fetch error:', error);
+    return [];
+  }
+}
+
+// Helper function to fetch GitHub Trending repositories
+async function fetchGitHubTrending() {
+  try {
+    console.log('Fetching from GitHub Trending...');
+    // GitHub doesn't have an official API for trending, but we can use GitHub's Search API for popular repos
+    // Get repos with high stars that were updated recently
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const dateFilter = oneMonthAgo.toISOString().split('T')[0];
+    
+    const response = await fetch(`https://api.github.com/search/repositories?q=stars:>500+pushed:>${dateFilter}&sort=stars&order=desc&per_page=8`, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'ContentstackDictionary/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API returned status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const repos = data.items || [];
+
+    return repos
+      .filter(repo => repo && repo.name && repo.html_url)
+      .map(repo => ({
+        id: `github-${repo.id}`,
+        title: `${repo.name}: ${repo.description || 'No description'}`,
+        url: repo.html_url,
+        score: repo.stargazers_count || 0,
+        author: repo.owner?.login || 'unknown',
+        time: repo.created_at,
+        comments: repo.open_issues_count || 0,
+        domain: 'github.com',
+        source: 'GitHub Trending',
+        sourceType: 'repository'
+      }));
+  } catch (error) {
+    console.error('GitHub Trending fetch error:', error);
+    return [];
+  }
+}
+
+// Helper function to fetch Product Hunt top products
+async function fetchProductHunt() {
+  try {
+    console.log('Fetching from Product Hunt...');
+    // Product Hunt has a GraphQL API, but requires authentication
+    // Alternative: Use their RSS feed or web scraping
+    // For now, we'll use a public endpoint if available, otherwise skip
+    // Note: Product Hunt requires API access which may need authentication
+    // This is a placeholder - may need to be implemented differently
+    return [];
+  } catch (error) {
+    console.error('Product Hunt fetch error:', error);
+    return [];
+  }
+}
+
+// Helper function to fetch Ars Technica articles via RSS parsing
+async function fetchArsTechnica() {
+  try {
+    console.log('Fetching from Ars Technica...');
+    // Using a simple RSS-to-JSON converter service
+    const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://feeds.arstechnica.com/arstechnica/index', {
+      headers: {
+        'User-Agent': 'ContentstackDictionary/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`RSS API returned status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const items = data.items || [];
+
+    return items
+      .slice(0, 6)
+      .filter(item => item && item.title && item.link)
+      .map(item => ({
+        id: `arstechnica-${item.guid || item.link}`,
+        title: item.title,
+        url: item.link,
+        score: 0,
+        author: item.author || 'Ars Technica',
+        time: item.pubDate || new Date().toISOString(),
+        comments: 0,
+        domain: 'arstechnica.com',
+        source: 'Ars Technica',
+        sourceType: 'news'
+      }));
+  } catch (error) {
+    console.error('Ars Technica fetch error:', error);
+    return [];
+  }
+}
+
+// Helper function to fetch The Verge articles via RSS
+async function fetchTheVerge() {
+  try {
+    console.log('Fetching from The Verge...');
+    const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.theverge.com/rss/index.xml', {
+      headers: {
+        'User-Agent': 'ContentstackDictionary/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`RSS API returned status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const items = data.items || [];
+
+    return items
+      .slice(0, 6)
+      .filter(item => item && item.title && item.link)
+      .map(item => ({
+        id: `verge-${item.guid || item.link}`,
+        title: item.title,
+        url: item.link,
+        score: 0,
+        author: item.author || 'The Verge',
+        time: item.pubDate || new Date().toISOString(),
+        comments: 0,
+        domain: 'theverge.com',
+        source: 'The Verge',
+        sourceType: 'news'
+      }));
+  } catch (error) {
+    console.error('The Verge fetch error:', error);
+    return [];
+  }
+}
+
 router.get('/api/tech-news', async (req, res) => {
   try {
     const startTime = Date.now();
@@ -1325,17 +1513,33 @@ router.get('/api/tech-news', async (req, res) => {
     console.log('Fetching tech news from multiple sources...');
 
     // Fetch from all sources in parallel
-    const [hackerNewsStories, lobstersStories, devToArticles] = await Promise.allSettled([
+    const [
+      hackerNewsStories,
+      lobstersStories,
+      devToArticles,
+      redditStories,
+      githubTrending,
+      arsTechnica,
+      theVerge
+    ] = await Promise.allSettled([
       fetchHackerNewsStories(),
       fetchLobstersStories(),
-      fetchDevToArticles()
+      fetchDevToArticles(),
+      fetchRedditStories(),
+      fetchGitHubTrending(),
+      fetchArsTechnica(),
+      fetchTheVerge()
     ]);
 
     // Combine results and handle failures gracefully
     const allStories = [
       ...(hackerNewsStories.status === 'fulfilled' ? hackerNewsStories.value : []),
       ...(lobstersStories.status === 'fulfilled' ? lobstersStories.value : []),
-      ...(devToArticles.status === 'fulfilled' ? devToArticles.value : [])
+      ...(devToArticles.status === 'fulfilled' ? devToArticles.value : []),
+      ...(redditStories.status === 'fulfilled' ? redditStories.value : []),
+      ...(githubTrending.status === 'fulfilled' ? githubTrending.value : []),
+      ...(arsTechnica.status === 'fulfilled' ? arsTechnica.value : []),
+      ...(theVerge.status === 'fulfilled' ? theVerge.value : [])
     ];
 
     // Remove duplicates based on URL
@@ -1358,22 +1562,30 @@ router.get('/api/tech-news', async (req, res) => {
         }
         return (b.score || 0) - (a.score || 0); // Higher score first
       })
-      .slice(0, 12); // Limit to 12 total stories
+      .slice(0, 18); // Limit to 18 total stories (increased due to more sources)
 
     const responseData = {
       timestamp: new Date().toISOString(),
-      sources: ['Hacker News', 'Lobsters', 'Dev.to'],
+      sources: ['Hacker News', 'Lobsters', 'Dev.to', 'Reddit', 'GitHub Trending', 'Ars Technica', 'The Verge'],
       sourcesFetched: {
         'Hacker News': hackerNewsStories.status === 'fulfilled',
         'Lobsters': lobstersStories.status === 'fulfilled',
-        'Dev.to': devToArticles.status === 'fulfilled'
+        'Dev.to': devToArticles.status === 'fulfilled',
+        'Reddit': redditStories.status === 'fulfilled',
+        'GitHub Trending': githubTrending.status === 'fulfilled',
+        'Ars Technica': arsTechnica.status === 'fulfilled',
+        'The Verge': theVerge.status === 'fulfilled'
       },
       stories: sortedStories,
       totalStories: sortedStories.length,
       sourceBreakdown: {
         'Hacker News': allStories.filter(s => s.source === 'Hacker News').length,
         'Lobsters': allStories.filter(s => s.source === 'Lobsters').length,
-        'Dev.to': allStories.filter(s => s.source === 'Dev.to').length
+        'Dev.to': allStories.filter(s => s.source === 'Dev.to').length,
+        'Reddit': allStories.filter(s => s.source && s.source.startsWith('Reddit')).length,
+        'GitHub Trending': allStories.filter(s => s.source === 'GitHub Trending').length,
+        'Ars Technica': allStories.filter(s => s.source === 'Ars Technica').length,
+        'The Verge': allStories.filter(s => s.source === 'The Verge').length
       }
     };
 
@@ -1395,7 +1607,7 @@ router.get('/api/tech-news', async (req, res) => {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'public, max-age=600', // Cache for 10 minutes
       'X-Cache': 'MISS',
-      'X-Data-Source': 'Multiple Sources (Hacker News, Lobsters, Dev.to)'
+      'X-Data-Source': 'Multiple Sources (Hacker News, Lobsters, Dev.to, Reddit, GitHub, Ars Technica, The Verge)'
     });
 
     res.json(responseData);

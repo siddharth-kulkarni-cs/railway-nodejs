@@ -528,6 +528,102 @@
         color: white;
       }
 
+      .news-card-source-reddit {
+        background: linear-gradient(135deg, #ff4500, #ff6b33);
+        color: white;
+      }
+
+      .news-card-source-github {
+        background: linear-gradient(135deg, #24292e, #2f363d);
+        color: white;
+      }
+
+      .news-card-source-arstechnica {
+        background: linear-gradient(135deg, #0f5d94, #1976d2);
+        color: white;
+      }
+
+      .news-card-source-verge {
+        background: linear-gradient(135deg, #fa3200, #ff6b47);
+        color: white;
+      }
+
+      /* Collapse/Expand Styles */
+      .news-toggle-btn {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .news-toggle-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      .news-toggle-btn:active {
+        transform: scale(0.95);
+      }
+
+      .news-toggle-btn i {
+        transition: transform 0.3s ease;
+        font-size: 1rem;
+      }
+
+      .news-toggle-btn.collapsed i {
+        transform: rotate(180deg);
+      }
+
+      @media (max-width: 768px) {
+        .news-toggle-btn {
+          width: 36px;
+          height: 36px;
+          top: 0.75rem;
+          right: 0.75rem;
+        }
+        
+        .news-toggle-btn i {
+          font-size: 0.9rem;
+        }
+      }
+
+      .news-content-wrapper {
+        overflow: hidden;
+        transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                    opacity 0.4s ease 0.1s,
+                    margin 0.4s ease,
+                    padding 0.4s ease;
+        max-height: 10000px;
+        opacity: 1;
+      }
+
+      .news-content-wrapper.collapsed {
+        max-height: 0;
+        opacity: 0;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                    opacity 0.3s ease,
+                    margin 0.4s ease,
+                    padding 0.4s ease;
+      }
+
       .news-card-header {
         margin-bottom: 1rem;
       }
@@ -847,6 +943,9 @@
     <!-- Enhanced Tech News Section -->
     <section id="tech-news" class="mb-5">
       <div class="news-section-header">
+        <button id="newsToggleBtn" class="news-toggle-btn" aria-label="Toggle tech news section" title="Collapse/Expand Tech News">
+          <i class="fas fa-chevron-down"></i>
+        </button>
         <div class="container">
           <h1 class="news-section-title text-center">
             <i class="fas fa-newspaper mr-3"></i>Tech News Hub
@@ -873,7 +972,8 @@
         </div>
       </div>
 
-      <div class="container">
+      <div class="news-content-wrapper" id="newsContentWrapper">
+        <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
           <div class="d-flex align-items-center">
             <i class="fas fa-fire text-warning mr-2"></i>
@@ -889,7 +989,7 @@
         <div id="newsLoading" class="news-loading" style="display: none;">
           <div class="news-loading-spinner"></div>
           <div class="news-loading-text">Discovering fresh tech stories...</div>
-          <div class="news-loading-subtext">Aggregating from Hacker News, Lobsters, and Dev.to</div>
+          <div class="news-loading-subtext">Aggregating from Hacker News, Lobsters, Dev.to, Reddit, GitHub, Ars Technica, and The Verge</div>
         </div>
 
         <!-- Error State -->
@@ -907,6 +1007,7 @@
         <!-- News Container -->
         <div id="newsContainer" class="news-container">
           <!-- News items will be inserted here dynamically -->
+        </div>
         </div>
       </div>
     </section>
@@ -2078,14 +2179,31 @@
       const timeAgo = formatTimeAgo(story.time);
 
       // Determine source badge class
-      const sourceClass = story.source === 'Hacker News' ? 'news-card-source-hackernews' :
-                         story.source === 'Lobsters' ? 'news-card-source-lobsters' :
-                         story.source === 'Dev.to' ? 'news-card-source-devto' : '';
-
-      // Source icon
-      const sourceIcon = story.source === 'Hacker News' ? 'fas fa-hacker-news' :
-                        story.source === 'Lobsters' ? 'fas fa-lobster' :
-                        story.source === 'Dev.to' ? 'fab fa-dev' : 'fas fa-newspaper';
+      let sourceClass = '';
+      let sourceIcon = 'fas fa-newspaper';
+      
+      if (story.source === 'Hacker News') {
+        sourceClass = 'news-card-source-hackernews';
+        sourceIcon = 'fas fa-hacker-news';
+      } else if (story.source === 'Lobsters') {
+        sourceClass = 'news-card-source-lobsters';
+        sourceIcon = 'fas fa-lobster';
+      } else if (story.source === 'Dev.to') {
+        sourceClass = 'news-card-source-devto';
+        sourceIcon = 'fab fa-dev';
+      } else if (story.source && story.source.startsWith('Reddit')) {
+        sourceClass = 'news-card-source-reddit';
+        sourceIcon = 'fab fa-reddit';
+      } else if (story.source === 'GitHub Trending') {
+        sourceClass = 'news-card-source-github';
+        sourceIcon = 'fab fa-github';
+      } else if (story.source === 'Ars Technica') {
+        sourceClass = 'news-card-source-arstechnica';
+        sourceIcon = 'fas fa-atom';
+      } else if (story.source === 'The Verge') {
+        sourceClass = 'news-card-source-verge';
+        sourceIcon = 'fas fa-v';
+      }
 
       card.innerHTML = `
         <div class="news-card-source-badge ${sourceClass}">
@@ -2112,24 +2230,10 @@
             </div>
           ` : ''}
           <div class="news-card-meta">
-            <div class="news-card-meta-item news-card-score">
-              <i class="fas fa-arrow-up"></i>
-              ${story.score || 0}
-            </div>
-            <div class="news-card-meta-item news-card-comments">
-              <i class="fas fa-comments"></i>
-              ${story.comments || 0}
-            </div>
             <div class="news-card-meta-item news-card-time">
               <i class="fas fa-clock"></i>
               ${timeAgo}
             </div>
-            ${story.author && story.author !== 'unknown' ? `
-              <div class="news-card-meta-item news-card-author">
-                <i class="fas fa-user"></i>
-                ${escapeHtml(story.author)}
-              </div>
-            ` : ''}
           </div>
         </div>
       `;
@@ -2192,8 +2296,61 @@
       return div.innerHTML;
     }
 
+    // Tech News Collapse/Expand Functionality
+    function toggleNewsSection() {
+      const contentWrapper = document.getElementById('newsContentWrapper');
+      const toggleBtn = document.getElementById('newsToggleBtn');
+      
+      if (!contentWrapper || !toggleBtn) return;
+
+      const isCollapsed = contentWrapper.classList.contains('collapsed');
+      
+      if (isCollapsed) {
+        // Expand
+        contentWrapper.classList.remove('collapsed');
+        toggleBtn.classList.remove('collapsed');
+        localStorage.setItem('techNewsCollapsed', 'false');
+        
+        // Track expand event
+        if (window.trackEvent) {
+          window.trackEvent('Tech News Expanded', {
+            action: 'expand',
+            section: 'tech-news'
+          });
+        }
+      } else {
+        // Collapse
+        contentWrapper.classList.add('collapsed');
+        toggleBtn.classList.add('collapsed');
+        localStorage.setItem('techNewsCollapsed', 'true');
+        
+        // Track collapse event
+        if (window.trackEvent) {
+          window.trackEvent('Tech News Collapsed', {
+            action: 'collapse',
+            section: 'tech-news'
+          });
+        }
+      }
+    }
+
     // Initialize tech news on page load
     document.addEventListener('DOMContentLoaded', function() {
+      // Check saved collapse state
+      const savedState = localStorage.getItem('techNewsCollapsed');
+      const contentWrapper = document.getElementById('newsContentWrapper');
+      const toggleBtn = document.getElementById('newsToggleBtn');
+      
+      if (savedState === 'true' && contentWrapper && toggleBtn) {
+        contentWrapper.classList.add('collapsed');
+        toggleBtn.classList.add('collapsed');
+      }
+
+      // Add toggle button listener
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', toggleNewsSection);
+      }
+
       // Fetch news when page loads
       fetchTechNews();
 
