@@ -704,6 +704,17 @@ router.get('/network-tools', (req, res) => {
 });
 
 // ------------------------------
+// Pomodoro Timer
+// ------------------------------
+router.get('/pomodoro', (req, res) => {
+  mixpanel.track('POMODORO_ACCESS', getComprehensiveUserProfile(req, {
+    page: 'pomodoro',
+    eventType: 'pomodoro_access'
+  }));
+  res.sendFile(path.join(__dirname, '../views/pomodoro.html'));
+});
+
+// ------------------------------
 // Helpers for network operations
 // ------------------------------
 const HOSTNAME_REGEX = /^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*\.?$/;

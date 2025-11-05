@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pomodoro Timer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <style>
+      :root {
+        --primary-color: #4a6fa5;
+        --secondary-color: #6e9887;
+        --accent-color: #ffc107;
+        --light-bg: #f8f9fa;
+        --dark-text: #333;
+        --card-bg: #ffffff;
+        --border-color: rgba(0,0,0,0.1);
+        --text-muted: #666;
+        --shadow-color: rgba(0,0,0,0.1);
+        --pomodoro-red: #e74c3c;
+        --pomodoro-green: #27ae60;
+        --pomodoro-blue: #3498db;
+      }
+
+      [data-theme="dark"] {
+        --primary-color: #6b8cc4;
+        --secondary-color: #8ab4a1;
+        --accent-color: #ffd54f;
+        --light-bg: #1a1a1a;
+        --dark-text: #e0e0e0;
+        --card-bg: #2d2d2d;
+        --border-color: rgba(255,255,255,0.1);
+        --text-muted: #b0b0b0;
+        --shadow-color: rgba(0,0,0,0.3);
+        --pomodoro-red: #ff6b6b;
+        --pomodoro-green: #51cf66;
+        --pomodoro-blue: #74b9ff;
+      }
+      
+      body {
+        font-family: 'Roboto', sans-serif;
+        background: linear-gradient(135deg, var(--light-bg) 0%, var(--card-bg) 100%);
+        color: var(--dark-text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        transition: background 0.3s ease;
+      }
+
+      .navbar-custom {
+        background-color: var(--card-bg);
+        box-shadow: 0 2px 10px var(--shadow-color);
+        padding: 1rem 0;
+        margin-bottom: 2rem;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .navbar-custom .nav-link {
+        color: var(--primary-color);
+        font-weight: 500;
+        margin: 0 0.5rem;
+        transition: color 0.3s ease;
+      }
+      
+      .navbar-custom .nav-link:hover {
+        color: var(--secondary-color);
+      }
+
+      .back-link {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        margin-bottom: 2rem;
+        transition: color 0.3s ease;
+      }
+
+      .back-link:hover {
+        color: var(--secondary-color);
+        text-decoration: none;
+      }
+
+      .pomodoro-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      .pomodoro-card {
+        background-color: var(--card-bg);
+        border-radius: 20px;
+        box-shadow: 0 10px 40px var(--shadow-color);
+        padding: 3rem 2rem;
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .pomodoro-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--pomodoro-red), var(--pomodoro-green), var(--pomodoro-blue));
+      }
+
+      .timer-display {
+        position: relative;
+        width: 300px;
+        height: 300px;
+        margin: 2rem auto;
+      }
+
+      .timer-circle {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: conic-gradient(
+          var(--pomodoro-red) 0deg,
+          var(--pomodoro-red) var(--progress, 0deg),
+          var(--border-color) var(--progress, 0deg),
+          var(--border-color) 360deg
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: background 0.3s ease;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      }
+
+      .timer-circle::before {
+        content: '';
+        position: absolute;
+        width: 85%;
+        height: 85%;
+        border-radius: 50%;
+        background-color: var(--card-bg);
+      }
+
+      .timer-text {
+        position: relative;
+        z-index: 10;
+        font-size: 3.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -2px;
+      }
+
+      .timer-label {
+        font-size: 1.2rem;
+        color: var(--text-muted);
+        margin-top: 1rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+
+      .timer-controls {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+      }
+
+      .btn-timer {
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 50px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      }
+
+      .btn-timer:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+      }
+
+      .btn-timer:active {
+        transform: translateY(0);
+      }
+
+      .btn-start {
+        background: linear-gradient(135deg, var(--pomodoro-green), #2ecc71);
+        color: white;
+      }
+
+      .btn-pause {
+        background: linear-gradient(135deg, var(--accent-color), #ffb300);
+        color: var(--dark-text);
+      }
+
+      .btn-reset {
+        background: linear-gradient(135deg, var(--pomodoro-red), #c0392b);
+        color: white;
+      }
+
+      .btn-skip {
+        background: linear-gradient(135deg, var(--pomodoro-blue), #2980b9);
+        color: white;
+      }
+
+      .mode-selector {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+      }
+
+      .mode-btn {
+        padding: 0.75rem 1.5rem;
+        background-color: var(--card-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 50px;
+        color: var(--text-muted);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+      }
+
+      .mode-btn:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        transform: translateY(-2px);
+      }
+
+      .mode-btn.active {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        border-color: transparent;
+        color: white;
+        box-shadow: 0 4px 15px rgba(74, 111, 165, 0.3);
+      }
+
+      .stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-top: 3rem;
+      }
+
+      .stat-card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px var(--shadow-color);
+      }
+
+      .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+      }
+
+      .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: var(--card-bg);
+        border: 2px solid var(--pomodoro-green);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 6px 20px var(--shadow-color);
+        z-index: 1000;
+        display: none;
+        animation: slideIn 0.3s ease;
+      }
+
+      .notification.show {
+        display: block;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .timer-display {
+          width: 250px;
+          height: 250px;
+        }
+
+        .timer-text {
+          font-size: 2.5rem;
+        }
+
+        .pomodoro-card {
+          padding: 2rem 1.5rem;
+        }
+
+        .btn-timer {
+          padding: 0.6rem 1.5rem;
+          font-size: 0.9rem;
+        }
+      }
+
+      .theme-toggle {
+        background: none;
+        border: 2px solid var(--primary-color);
+        color: var(--primary-color);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-left: 1rem;
+      }
+
+      .theme-toggle:hover {
+        background-color: var(--primary-color);
+        color: var(--card-bg);
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light navbar-custom">
+      <div class="container">
+        <a class="navbar-brand" href="/">
+          <i class="fas fa-clock"></i> Pomodoro Timer
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="/">Home</a>
+            </li>
+            <li class="nav-item">
+              <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                <i class="fas fa-moon" id="themeIcon"></i>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container pomodoro-container">
+      <a href="/" class="back-link">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Home
+      </a>
+
+      <div class="pomodoro-card">
+        <h1 class="mb-4" style="color: var(--primary-color); font-weight: 700;">
+          <i class="fas fa-tomato"></i> Pomodoro Timer
+        </h1>
+
+        <div class="mode-selector">
+          <button class="mode-btn active" data-mode="pomodoro" id="modePomodoro">
+            <i class="fas fa-clock"></i> Pomodoro (25 min)
+          </button>
+          <button class="mode-btn" data-mode="shortBreak" id="modeShortBreak">
+            <i class="fas fa-coffee"></i> Short Break (5 min)
+          </button>
+          <button class="mode-btn" data-mode="longBreak" id="modeLongBreak">
+            <i class="fas fa-umbrella-beach"></i> Long Break (15 min)
+          </button>
+        </div>
+        
+        <div class="mode-selector" style="margin-top: 1rem;">
+          <button class="mode-btn" data-mode="oneMin" id="modeOneMin">
+            <i class="fas fa-stopwatch"></i> 1 min
+          </button>
+          <button class="mode-btn" data-mode="twoMin" id="modeTwoMin">
+            <i class="fas fa-stopwatch"></i> 2 min
+          </button>
+          <button class="mode-btn" data-mode="threeMin" id="modeThreeMin">
+            <i class="fas fa-stopwatch"></i> 3 min
+          </button>
+          <button class="mode-btn" data-mode="tenMin" id="modeTenMin">
+            <i class="fas fa-stopwatch"></i> 10 min
+          </button>
+        </div>
+
+        <div class="timer-display">
+          <div class="timer-circle" id="timerCircle">
+            <div class="timer-text" id="timerText">25:00</div>
+          </div>
+        </div>
+
+        <div class="timer-label" id="timerLabel">Ready to focus</div>
+
+        <div class="timer-controls">
+          <button class="btn-timer btn-start" id="btnStart">
+            <i class="fas fa-play"></i> Start
+          </button>
+          <button class="btn-timer btn-pause" id="btnPause" style="display: none;">
+            <i class="fas fa-pause"></i> Pause
+          </button>
+          <button class="btn-timer btn-reset" id="btnReset">
+            <i class="fas fa-redo"></i> Reset
+          </button>
+          <button class="btn-timer btn-skip" id="btnSkip" style="display: none;">
+            <i class="fas fa-forward"></i> Skip
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="notification" id="notification">
+      <i class="fas fa-check-circle mr-2"></i>
+      <span id="notificationText"></span>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/javascript/pomodoro.js"></script>
+  </body>
+</html>
+
