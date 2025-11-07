@@ -106,6 +106,95 @@
         font-size: 0.55rem;
         padding: 2px 4px;
       }
+
+      /* Hamburger Menu Styles - Always Visible */
+      .navbar-toggler {
+        border: 2px solid var(--primary-color);
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        background-color: transparent;
+        transition: all 0.3s ease;
+        display: block !important;
+      }
+
+      .navbar-toggler:hover {
+        background-color: var(--primary-color);
+      }
+
+      .navbar-toggler:hover .navbar-toggler-icon {
+        background-color: var(--card-bg);
+      }
+
+      .navbar-toggler:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.3);
+      }
+
+      .navbar-toggler[aria-expanded="true"] {
+        background-color: var(--primary-color);
+      }
+
+      .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon {
+        background-color: var(--card-bg);
+      }
+
+      .navbar-toggler-icon {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(74, 111, 165, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        width: 1.5em;
+        height: 1.5em;
+        transition: all 0.3s ease;
+      }
+
+      [data-theme="dark"] .navbar-toggler-icon {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(107, 140, 196, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+      }
+
+      .navbar-collapse {
+        margin-top: 1rem;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+
+      .navbar-collapse.show {
+        max-height: 1000px;
+        transition: max-height 0.5s ease-in;
+      }
+
+      .navbar-nav {
+        align-items: flex-start;
+        padding: 0.5rem 0;
+      }
+
+      .navbar-nav .nav-item {
+        width: 100%;
+        margin-bottom: 0.25rem;
+      }
+
+      .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        width: 100%;
+        display: flex;
+        align-items: center;
+      }
+
+      .navbar-nav .nav-link:hover {
+        background-color: var(--light-bg);
+        transform: translateX(5px);
+        color: var(--primary-color);
+      }
+
+      [data-theme="dark"] .navbar-nav .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .navbar-nav .nav-link i {
+        width: 20px;
+        text-align: center;
+        margin-right: 0.5rem;
+      }
       
       .main-banner {
         background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
@@ -881,52 +970,74 @@
   <body>
     <header class="site-header">
       <div class="container">
-        <nav class="navbar navbar-expand-lg navbar-light navbar-custom">
+        <nav class="navbar navbar-light navbar-custom">
           <a class="navbar-brand" href="/">
             <h1 class="site-title">Product Showcase</h1>
           </a>
-          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
+          <div class="d-flex align-items-center">
+            <button class="theme-toggle mr-2" id="themeToggle" aria-label="Toggle dark mode">
+              <i class="fas fa-moon" id="themeIcon"></i>
+            </button>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+          </div>
           <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
               <li class="nav-item active">
-                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/">
+                  <i class="fas fa-home mr-2"></i>Home
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#products">Products</a>
+                <a class="nav-link" href="#products">
+                  <i class="fas fa-box mr-2"></i>Products
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#featured">Featured</a>
+                <a class="nav-link" href="#featured">
+                  <i class="fas fa-star mr-2"></i>Featured
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#file-sha">File Analysis</a>
+                <a class="nav-link" href="#file-sha">
+                  <i class="fas fa-fingerprint mr-2"></i>File Analysis
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/animations">Animations</a>
+                <a class="nav-link" href="/animations">
+                  <i class="fas fa-magic mr-2"></i>Animations
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/dev-tools">Dev&nbsp;Tools <span class="badge badge-danger ml-1" style="font-size: 0.6em;">NEW</span></a>
+                <a class="nav-link" href="/dev-tools">
+                  <i class="fas fa-tools mr-2"></i>Dev&nbsp;Tools <span class="badge badge-danger ml-1" style="font-size: 0.6em;">NEW</span>
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/network-tools">Network&nbsp;Tools <span class="badge badge-danger ml-1" style="font-size: 0.6em;">NEW</span></a>
+                <a class="nav-link" href="/network-tools">
+                  <i class="fas fa-network-wired mr-2"></i>Network&nbsp;Tools <span class="badge badge-danger ml-1" style="font-size: 0.6em;">NEW</span>
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/reverse-geocode-demo">Reverse Geocode <span class="badge badge-danger ml-1" style="font-size: 0.6em;">NEW</span></a>
+                <a class="nav-link" href="/reverse-geocode-demo">
+                  <i class="fas fa-map-marker-alt mr-2"></i>Reverse Geocode <span class="badge badge-danger ml-1" style="font-size: 0.6em;">NEW</span>
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/stickies">📝 Sticky Notes <span class="badge badge-success ml-1" style="font-size: 0.6em;">NEW</span></a>
+                <a class="nav-link" href="/stickies">
+                  <i class="fas fa-sticky-note mr-2"></i>Sticky Notes <span class="badge badge-success ml-1" style="font-size: 0.6em;">NEW</span>
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/pomodoro">🍅 Pomodoro Timer <span class="badge badge-danger ml-1" style="font-size: 0.6em;">NEW</span></a>
+                <a class="nav-link" href="/pomodoro">
+                  <i class="fas fa-clock mr-2"></i>Pomodoro Timer <span class="badge badge-danger ml-1" style="font-size: 0.6em;">NEW</span>
+                </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#about">About</a>
-              </li>
-              <li class="nav-item">
-                <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
-                  <i class="fas fa-moon" id="themeIcon"></i>
-                </button>
+                <a class="nav-link" href="#about">
+                  <i class="fas fa-info-circle mr-2"></i>About
+                </a>
               </li>
             </ul>
           </div>
@@ -1423,27 +1534,29 @@
       updateThemeIcon(currentTheme);
       updateNavbarTheme(currentTheme);
 
-      themeToggle.addEventListener('click', () => {
-        const currentTheme = htmlElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        
-        // Track theme toggle
-        window.trackEvent('Theme Toggled', {
-          previous_theme: currentTheme,
-          new_theme: newTheme
+      if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+          const currentTheme = htmlElement.getAttribute('data-theme');
+          const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          
+          // Track theme toggle
+          if (window.trackEvent) {
+            window.trackEvent('Theme Toggled', {
+              previous_theme: currentTheme,
+              new_theme: newTheme
+            });
+          }
+          
+          htmlElement.setAttribute('data-theme', newTheme);
+          localStorage.setItem('theme', newTheme);
+          updateThemeIcon(newTheme);
+          updateNavbarTheme(newTheme);
         });
-        
-        htmlElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeIcon(newTheme);
-        updateNavbarTheme(newTheme);
-      });
+      }
 
       function updateThemeIcon(theme) {
-        if (theme === 'dark') {
-          themeIcon.className = 'fas fa-sun';
-        } else {
-          themeIcon.className = 'fas fa-moon';
+        if (themeIcon) {
+          themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         }
       }
 
