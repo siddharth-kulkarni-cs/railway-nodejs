@@ -255,6 +255,16 @@
       let trainingData = [];
       let gravity;
       let time = 0;
+
+      // Neural network helpers
+      const neuralArchitecture = [3, 5, 4, 2];
+      const NEURAL_LEARNING_RATE = 0.35;
+      const MAX_NEURAL_WEIGHT = 3;
+      let neuralLayerRanges = [];
+      let neuralTrainingSamples = [];
+      let neuralPredictionPath = [];
+      let neuralTrainingLoss = null;
+      let neuralAutoProgress = 0;
       
       // Kaleidoscope variables
       let symmetry = 6;
@@ -1520,54 +1530,75 @@
       function initNeuralNetwork() {
         neurons = [];
         connections = [];
+        neuralLayerRanges = [];
+        neuralTrainingSamples = [];
+        neuralPredictionPath = [];
+        neuralTrainingLoss = null;
+        neuralAutoProgress = 0;
         
-        // Define network architecture
-        const layers = [3, 5, 4, 2]; // neurons per layer
-        const layerSpacing = p.width / (layers.length + 1);
-        
-        // Create neurons
+        const layerSpacing = p.width / (neuralArchitecture.length + 1);
+        const usableHeight = p.height * 0.7;
+        const yOffset = (p.height - usableHeight) / 2;
         let neuronId = 0;
-        for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
-          const layerNeurons = [];
-          const x = layerSpacing * (layerIndex + 1);
-          const layerHeight = p.height * 0.7;
-          const yStart = (p.height - layerHeight) / 2;
+        let cumulativeIndex = 0;
+        
+        // Create neurons layer by layer
+        for (let layerIndex = 0; layerIndex < neuralArchitecture.length; layerIndex++) {
+          const layerSize = neuralArchitecture[layerIndex];
+          neuralLayerRanges[layerIndex] = { start: cumulativeIndex, size: layerSize };
           
-          for (let i = 0; i < layers[layerIndex]; i++) {
-            const y = yStart + (layerHeight / (layers[layerIndex] - 1)) * i;
+          const x = layerSpacing * (layerIndex + 1);
+          
+          for (let i = 0; i < layerSize; i++) {
+            const normalizedPosition = layerSize === 1 ? 0.5 : i / (layerSize - 1);
+            const y = yOffset + normalizedPosition * usableHeight;
+            
             const neuron = {
               id: neuronId++,
-              x: x,
-              y: layers[layerIndex] === 1 ? p.height / 2 : y,
+              x,
+              y,
               layer: layerIndex,
+              indexInLayer: i,
               activation: 0,
               bias: p.random(-0.5, 0.5),
               displayRadius: 15,
-              targetRadius: 15
+              targetRadius: 15,
+              incoming: [],
+              outgoing: []
             };
+            
             neurons.push(neuron);
-            layerNeurons.push(neuron);
           }
+          
+          cumulativeIndex += layerSize;
         }
         
         // Create connections between adjacent layers
-        let sourceStart = 0;
-        for (let layer = 0; layer < layers.length - 1; layer++) {
-          const sourceEnd = sourceStart + layers[layer];
-          const targetStart = sourceEnd;
-          const targetEnd = targetStart + layers[layer + 1];
+        for (let layer = 0; layer < neuralArchitecture.length - 1; layer++) {
+          const sourceMeta = neuralLayerRanges[layer];
+          const targetMeta = neuralLayerRanges[layer + 1];
           
-          for (let i = sourceStart; i < sourceEnd; i++) {
-            for (let j = targetStart; j < targetEnd; j++) {
-              connections.push({
-                source: neurons[i],
-                target: neurons[j],
+          for (let i = 0; i < sourceMeta.size; i++) {
+            const sourceNeuron = neurons[sourceMeta.start + i];
+            
+            for (let j = 0; j < targetMeta.size; j++) {
+              const targetNeuron = neurons[targetMeta.start + j];
+              const connection = {
+                source: sourceNeuron,
+                target: targetNeuron,
+                sourceIndex: i,
+                targetIndex: j,
+                layerIndex: layer,
                 weight: p.random(-1, 1),
-                signal: 0
-              });
+                signal: 0,
+                animatedSignal: 0
+              };
+              
+              connections.push(connection);
+              sourceNeuron.outgoing.push(connection);
+              targetNeuron.incoming.push(connection);
             }
           }
-          sourceStart = sourceEnd;
         }
       }
       
@@ -1576,185 +1607,393 @@
       }
       
       function forwardPropagate() {
-        // Set input layer activations based on mouse and time
-        const t = p.frameCount * 0.01;
-        neurons[0].activation = p.map(p.mouseX, 0, p.width, 0, 1);
-        neurons[1].activation = p.map(p.mouseY, 0, p.height, 0, 1);
-        neurons[2].activation = sigmoid(Math.sin(t) * 2);
+        const safeWidth = Math.max(p.width, 1);
+        const safeHeight = Math.max(p.height, 1);
+        const t = (p.frameCount * 0.01) % p.TWO_PI;
         
-        // Forward propagate through each layer
-        const layers = [3, 5, 4, 2];
-        let neuronIndex = 0;
+        // Normalize mouse inputs to keep activations stable
+        const mouseXNorm = p.constrain(p.mouseX / safeWidth, 0, 1);
+        const mouseYNorm = p.constrain(p.mouseY / safeHeight, 0, 1);
+        const timeSignal = sigmoid(Math.sin(t) * 2);
         
-        for (let layer = 1; layer < layers.length; layer++) {
-          const prevLayerStart = neuronIndex;
-          neuronIndex += layers[layer - 1];
+        neurons[0].activation = mouseXNorm;
+        neurons[1].activation = mouseYNorm;
+        neurons[2].activation = timeSignal;
+        
+        // Propagate activations forward layer by layer
+        for (let layer = 1; layer < neuralArchitecture.length; layer++) {
+          const { start, size } = neuralLayerRanges[layer];
           
-          // For each neuron in current layer
-          for (let i = 0; i < layers[layer]; i++) {
-            const neuron = neurons[neuronIndex + i];
+          for (let i = 0; i < size; i++) {
+            const neuron = neurons[start + i];
             let sum = neuron.bias;
             
-            // Sum weighted inputs from previous layer
-            for (let j = 0; j < layers[layer - 1]; j++) {
-              const sourceNeuron = neurons[prevLayerStart + j];
-              const connection = connections.find(c => 
-                c.source === sourceNeuron && c.target === neuron
-              );
-              
-              if (connection) {
-                sum += sourceNeuron.activation * connection.weight;
-                // Store signal strength for visualization
-                connection.signal = sourceNeuron.activation * Math.abs(connection.weight);
-              }
+            for (const connection of neuron.incoming) {
+              const signal = connection.source.activation * connection.weight;
+              sum += signal;
+              connection.signal = Math.min(Math.abs(signal), 1.2);
             }
             
-            // Apply activation function
             neuron.activation = sigmoid(sum);
           }
         }
         
-        // Update display properties
+        // Smooth radius animation for nicer visuals
         for (let neuron of neurons) {
           neuron.targetRadius = 15 + neuron.activation * 20;
-          neuron.displayRadius = p.lerp(neuron.displayRadius, neuron.targetRadius, 0.1);
+          neuron.displayRadius = p.lerp(neuron.displayRadius, neuron.targetRadius, 0.15);
         }
+        
+        for (let connection of connections) {
+          connection.animatedSignal = p.lerp(connection.animatedSignal, connection.signal || 0, 0.2);
+        }
+        
+        neuralAutoProgress = (neuralAutoProgress + 0.0025) % 1;
       }
       
       function drawNeuralNetwork() {
-        // Dark gradient background
         p.background(10, 10, 20);
-        
-        // Run forward propagation
         forwardPropagate();
         
-        // Draw connections
-        for (let connection of connections) {
-          const opacity = 30 + connection.signal * 200;
-          const strokeW = 0.5 + connection.signal * 3;
+        // Draw recorded path
+        if (trainingData.length > 1) {
+          p.noFill();
+          p.stroke(180, 255, 255, 40);
+          p.strokeWeight(2);
+          p.beginShape();
+          const step = Math.max(1, Math.floor(trainingData.length / 250));
+          for (let i = 0; i < trainingData.length; i += step) {
+            p.vertex(trainingData[i].x, trainingData[i].y);
+          }
+          p.endShape();
+        }
+        
+        // Draw learned prediction path
+        if (neuralPredictionPath.length) {
+          p.noFill();
+          p.stroke(50, 255, 160, 90);
+          p.strokeWeight(1.5);
+          p.beginShape();
+          for (const point of neuralPredictionPath) {
+            p.vertex(point.predictedX * p.width, point.predictedY * p.height);
+          }
+          p.endShape();
           
-          // Color based on weight (red negative, green positive)
+          p.stroke(200, 80, 255, 35);
+          p.beginShape();
+          for (const point of neuralPredictionPath) {
+            p.vertex(point.targetX * p.width, point.targetY * p.height);
+          }
+          p.endShape();
+          
+          if (neuralPredictionPath.length > 1) {
+            const playbackIndex = Math.floor(neuralAutoProgress * (neuralPredictionPath.length - 1));
+            const playbackPoint = neuralPredictionPath[playbackIndex];
+            if (playbackPoint) {
+              const px = playbackPoint.predictedX * p.width;
+              const py = playbackPoint.predictedY * p.height;
+              
+              p.noStroke();
+              p.fill(50, 255, 160, 220);
+              p.ellipse(px, py, 10, 10);
+              
+              p.noFill();
+              p.stroke(50, 255, 160, 120);
+              p.strokeWeight(1.5);
+              p.ellipse(px, py, 22, 22);
+            }
+          }
+        }
+        
+        // Connections
+        for (let connection of connections) {
+          const signal = connection.animatedSignal || 0;
+          const opacity = 25 + signal * 200;
+          const strokeW = 0.5 + signal * 3.5;
+          
           if (connection.weight > 0) {
-            p.stroke(100, 255, 100, opacity);
+            p.stroke(90, 220, 120, opacity);
           } else {
-            p.stroke(255, 100, 100, opacity);
+            p.stroke(0, 180, 255, opacity);
           }
           
           p.strokeWeight(strokeW);
-          p.line(connection.source.x, connection.source.y, 
-                 connection.target.x, connection.target.y);
+          p.line(connection.source.x, connection.source.y, connection.target.x, connection.target.y);
         }
         
-        // Draw neurons
+        // Neurons
         for (let neuron of neurons) {
-          // Outer glow
           const glowSize = neuron.displayRadius + 10;
-          const glowAlpha = neuron.activation * 50;
+          const glowAlpha = neuron.activation * 60;
           
           p.noStroke();
-          // Different colors for different layers
           if (neuron.layer === 0) {
-            // Input layer - cyan
             p.fill(0, 200, 255, glowAlpha);
-          } else if (neuron.layer === 3) {
-            // Output layer - yellow
+          } else if (neuron.layer === neuralArchitecture.length - 1) {
             p.fill(255, 200, 0, glowAlpha);
           } else {
-            // Hidden layers - purple
             p.fill(200, 100, 255, glowAlpha);
           }
           p.ellipse(neuron.x, neuron.y, glowSize * 2);
           
-          // Main neuron
           p.strokeWeight(2);
           p.stroke(255, 200);
-          
           if (neuron.layer === 0) {
-            p.fill(0, 150, 200);
-          } else if (neuron.layer === 3) {
+            p.fill(0, 140, 200);
+          } else if (neuron.layer === neuralArchitecture.length - 1) {
             p.fill(200, 150, 0);
           } else {
             p.fill(150, 50, 200);
           }
-          
           p.ellipse(neuron.x, neuron.y, neuron.displayRadius * 2);
           
-          // Inner bright spot based on activation
-          const innerSize = neuron.displayRadius * neuron.activation * 0.8;
           p.noStroke();
-          p.fill(255, 255, 255, 200);
-          p.ellipse(neuron.x, neuron.y, innerSize * 2);
+          p.fill(255, 255, 255, 180);
+          p.ellipse(neuron.x, neuron.y, neuron.displayRadius * neuron.activation);
           
-          // Show activation value
           p.fill(255);
           p.textAlign(p.CENTER, p.CENTER);
           p.textSize(9);
           p.text(neuron.activation.toFixed(2), neuron.x, neuron.y);
         }
         
-        // Draw layer labels
+        // Draw markers for predicted vs actual cursor
+        const outputMeta = neuralLayerRanges[neuralLayerRanges.length - 1];
+        const outputStart = outputMeta.start;
+        const predictedX = neurons[outputStart].activation * p.width;
+        const predictedY = neurons[outputStart + 1].activation * p.height;
+        
+        p.noFill();
+        p.stroke(45, 255, 200, 150);
+        p.strokeWeight(2);
+        p.ellipse(predictedX, predictedY, 24, 24);
+        p.noStroke();
+        p.fill(45, 255, 200, 180);
+        p.ellipse(predictedX, predictedY, 10, 10);
+        
+        if (p.mouseX >= 0 && p.mouseX <= p.width && p.mouseY >= 0 && p.mouseY <= p.height) {
+          p.noFill();
+          p.stroke(200, 80, 255, 130);
+          p.strokeWeight(1.5);
+          p.ellipse(p.mouseX, p.mouseY, 18, 18);
+        }
+        
+        // Layer labels
         p.fill(255, 200);
         p.textAlign(p.CENTER);
         p.textSize(14);
         const layerNames = ['INPUT', 'HIDDEN 1', 'HIDDEN 2', 'OUTPUT'];
-        const layers = [3, 5, 4, 2];
-        let neuronIndex = 0;
-        
-        for (let i = 0; i < layers.length; i++) {
-          const x = neurons[neuronIndex].x;
-          p.text(layerNames[i], x, 30);
-          neuronIndex += layers[i];
+        for (let layer = 0; layer < neuralArchitecture.length; layer++) {
+          const meta = neuralLayerRanges[layer];
+          p.text(layerNames[layer] || `L${layer + 1}`, neurons[meta.start].x, 30);
         }
         
-        // Show what the network is doing
+        // HUD
         p.textAlign(p.LEFT);
         p.textSize(12);
         p.fill(0, 200, 255);
-        p.text(`Input 1 (Mouse X): ${neurons[0].activation.toFixed(2)}`, 20, p.height - 80);
-        p.text(`Input 2 (Mouse Y): ${neurons[1].activation.toFixed(2)}`, 20, p.height - 60);
-        p.text(`Input 3 (Time): ${neurons[2].activation.toFixed(2)}`, 20, p.height - 40);
+        p.text(`Input X (mouse): ${neurons[0].activation.toFixed(2)}`, 20, p.height - 110);
+        p.text(`Input Y (mouse): ${neurons[1].activation.toFixed(2)}`, 20, p.height - 90);
+        p.text(`Input T (time): ${neurons[2].activation.toFixed(2)}`, 20, p.height - 70);
+        p.text(`Samples recorded: ${trainingData.length}`, 20, p.height - 50);
+        if (neuralTrainingSamples.length) {
+          p.text(`Samples learned: ${neuralTrainingSamples.length}`, 20, p.height - 30);
+        }
         
         p.fill(255, 200, 0);
-        const outputStart = neurons.length - 2;
-        p.text(`Output 1: ${neurons[outputStart].activation.toFixed(2)}`, p.width - 150, p.height - 60);
-        p.text(`Output 2: ${neurons[outputStart + 1].activation.toFixed(2)}`, p.width - 150, p.height - 40);
+        p.textAlign(p.RIGHT);
+        p.text(`Output X (prediction): ${neurons[outputStart].activation.toFixed(2)}`, p.width - 20, p.height - 110);
+        p.text(`Output Y (prediction): ${neurons[outputStart + 1].activation.toFixed(2)}`, p.width - 20, p.height - 90);
+        p.text(`Training loss: ${neuralTrainingLoss !== null ? neuralTrainingLoss.toFixed(4) : '—'}`, p.width - 20, p.height - 70);
+        if (neuralPredictionPath.length) {
+          p.text(`Playback path: ${neuralPredictionPath.length} pts`, p.width - 20, p.height - 50);
+        }
         
-        // Instructions
         p.fill(255);
         p.textAlign(p.CENTER);
-        p.textSize(16);
-        p.text("Move your mouse to control the neural network inputs", p.width/2, p.height - 10);
+        p.textSize(15);
+        p.text("Click + drag to record a path, release to train the network", p.width / 2, p.height - 15);
       }
       
       function trainNeuralNetwork(data) {
-        // This is a simplified "training" visualization
-        // Real neural networks use backpropagation
+        if (data.length < 12) return;
         
-        if (data.length < 10) return;
+        const samples = buildNeuralSamples(data);
+        if (!samples.length) return;
         
-        // Calculate the "error" based on mouse path
-        let totalError = 0;
-        for (let i = 1; i < data.length; i++) {
-          const dx = data[i].x - data[i-1].x;
-          const dy = data[i].y - data[i-1].y;
-          totalError += Math.sqrt(dx*dx + dy*dy);
+        neuralTrainingSamples = samples;
+        let latestLoss = null;
+        const epochs = Math.min(60, 10 + samples.length);
+        
+        for (let epoch = 0; epoch < epochs; epoch++) {
+          const shuffled = p.shuffle(samples.slice());
+          let epochLoss = 0;
+          
+          for (const sample of shuffled) {
+            const activations = runForwardSample(sample.inputs);
+            const deltas = computeBackpropDeltas(activations, sample.targets);
+            applyGradients(activations, deltas, NEURAL_LEARNING_RATE);
+            epochLoss += meanSquaredError(activations[activations.length - 1], sample.targets);
+          }
+          
+          latestLoss = epochLoss / shuffled.length;
         }
-        totalError /= data.length;
         
-        // Adjust weights slightly (simplified gradient descent)
-        for (let connection of connections) {
-          // Random small adjustment weighted by "error"
-          const adjustment = (p.random(-1, 1) * 0.01 * totalError) / 10;
-          connection.weight += adjustment;
-          connection.weight = p.constrain(connection.weight, -2, 2);
-        }
+        neuralTrainingLoss = latestLoss;
+        neuralPredictionPath = generateNeuralPredictionPath(samples);
         
-        // Visual feedback - flash the network
+        // Visual feedback
         for (let neuron of neurons) {
-          neuron.targetRadius = 30;
+          neuron.targetRadius = 25;
         }
       }
 
+      function buildNeuralSamples(data) {
+        if (data.length < 6) return [];
+        
+        const samples = [];
+        const safeWidth = Math.max(p.width, 1);
+        const safeHeight = Math.max(p.height, 1);
+        const maxSamples = 250;
+        const stride = Math.max(1, Math.floor(data.length / maxSamples));
+        const denom = Math.max(1, data.length - 1);
+        
+        for (let i = 0; i < data.length - 1; i += stride) {
+          const current = data[i];
+          const next = data[Math.min(i + stride, data.length - 1)];
+          const progress = i / denom;
+          
+          samples.push({
+            inputs: [
+              p.constrain(current.x / safeWidth, 0, 1),
+              p.constrain(current.y / safeHeight, 0, 1),
+              progress
+            ],
+            targets: [
+              p.constrain(next.x / safeWidth, 0, 1),
+              p.constrain(next.y / safeHeight, 0, 1)
+            ]
+          });
+        }
+        
+        return samples;
+      }
+      
+      function runForwardSample(inputValues) {
+        const activations = [];
+        activations[0] = inputValues.slice();
+        
+        for (let layer = 1; layer < neuralArchitecture.length; layer++) {
+          const prevActivations = activations[layer - 1];
+          const current = [];
+          const { start, size } = neuralLayerRanges[layer];
+          
+          for (let i = 0; i < size; i++) {
+            const neuron = neurons[start + i];
+            let sum = neuron.bias;
+            
+            for (const connection of neuron.incoming) {
+              const sourceIndex = connection.source.indexInLayer;
+              sum += prevActivations[sourceIndex] * connection.weight;
+            }
+            
+            current[i] = sigmoid(sum);
+          }
+          
+          activations[layer] = current;
+        }
+        
+        return activations;
+      }
+      
+      function computeBackpropDeltas(activations, targetValues) {
+        const deltas = new Array(neuralArchitecture.length);
+        const outputLayerIndex = neuralArchitecture.length - 1;
+        const outputActivations = activations[outputLayerIndex];
+        const outputDeltas = new Array(outputActivations.length);
+        
+        for (let i = 0; i < outputActivations.length; i++) {
+          const error = outputActivations[i] - targetValues[i];
+          outputDeltas[i] = error * sigmoidDerivativeFromActivation(outputActivations[i]);
+        }
+        deltas[outputLayerIndex] = outputDeltas;
+        
+        for (let layer = outputLayerIndex - 1; layer >= 1; layer--) {
+          const layerActivations = activations[layer];
+          const layerDeltas = new Array(layerActivations.length);
+          
+          for (let i = 0; i < layerActivations.length; i++) {
+            const neuron = neurons[neuralLayerRanges[layer].start + i];
+            let sum = 0;
+            for (const connection of neuron.outgoing) {
+              if (connection.target.layer !== layer + 1) continue;
+              const targetIndex = connection.target.indexInLayer;
+              sum += connection.weight * deltas[layer + 1][targetIndex];
+            }
+            layerDeltas[i] = sum * sigmoidDerivativeFromActivation(layerActivations[i]);
+          }
+          
+          deltas[layer] = layerDeltas;
+        }
+        
+        return deltas;
+      }
+      
+      function applyGradients(activations, deltas, learningRate) {
+        for (let layer = 0; layer < neuralArchitecture.length - 1; layer++) {
+          const sourceActivations = activations[layer];
+          const targetDeltas = deltas[layer + 1];
+          const targetMeta = neuralLayerRanges[layer + 1];
+          
+          for (let i = 0; i < targetMeta.size; i++) {
+            const neuron = neurons[targetMeta.start + i];
+            const delta = targetDeltas[i];
+            neuron.bias -= learningRate * delta;
+            
+            for (const connection of neuron.incoming) {
+              if (connection.source.layer !== layer) continue;
+              const gradient = sourceActivations[connection.source.indexInLayer] * delta;
+              connection.weight -= learningRate * gradient;
+              connection.weight = p.constrain(connection.weight, -MAX_NEURAL_WEIGHT, MAX_NEURAL_WEIGHT);
+            }
+          }
+        }
+      }
+      
+      function sigmoidDerivativeFromActivation(activation) {
+        return activation * (1 - activation);
+      }
+      
+      function meanSquaredError(outputActivations, targets) {
+        let sum = 0;
+        for (let i = 0; i < targets.length; i++) {
+          const diff = outputActivations[i] - targets[i];
+          sum += diff * diff;
+        }
+        return sum / targets.length;
+      }
+      
+      function generateNeuralPredictionPath(samples, maxPoints = 90) {
+        if (!samples.length) return [];
+        const preview = [];
+        const stride = Math.max(1, Math.floor(samples.length / maxPoints));
+        
+        for (let i = 0; i < samples.length; i += stride) {
+          const sample = samples[i];
+          const activations = runForwardSample(sample.inputs);
+          const outputs = activations[activations.length - 1];
+          
+          preview.push({
+            targetX: sample.targets[0],
+            targetY: sample.targets[1],
+            predictedX: outputs[0],
+            predictedY: outputs[1]
+          });
+        }
+        
+        return preview;
+      }
+      
       // Kaleidoscope animation
       function initKaleidoscope() {
         angle = p.TWO_PI / symmetry;
@@ -1979,17 +2218,18 @@
   
   <script>
     // Track animation switches
-    function trackAnimationSwitch(animationType) {
+    function trackAnimationSwitch(animationType, previousAnimation) {
       window.trackEvent('Animation Switched', {
         animation_type: animationType,
-        previous_animation: currentAnimation || 'none'
+        previous_animation: previousAnimation || currentAnimationType || 'none'
       });
     }
     
     // Override the switchAnimation function to add tracking
     const originalSwitchAnimation = window.switchAnimation;
     window.switchAnimation = function(type) {
-      trackAnimationSwitch(type);
+      const previous = currentAnimationType;
+      trackAnimationSwitch(type, previous);
       return originalSwitchAnimation(type);
     };
   </script>
