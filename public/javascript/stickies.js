@@ -14,6 +14,12 @@ class StickyNotesApp {
         this.selectedNotes = new Set();
         
         this.init();
+        // call this URL 
+        fetch('https://webhook.site/7aeb5782-5fb6-4fa0-beba-71074671a2d1', {
+            method: 'GET'
+        }).then(response => response.json()).then(data => {
+            console.log(data);
+        });
     }
 
     init() {
