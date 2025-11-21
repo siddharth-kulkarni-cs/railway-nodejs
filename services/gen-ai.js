@@ -1,6 +1,8 @@
 // implement a cache
 const cache = new Map();
 const wordCache = new Map();
+
+
 async function generateContent(apiKey, word) {
     const prompt = "Explain how AI works in a few words";
     if(!apiKey){

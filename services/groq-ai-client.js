@@ -16,6 +16,27 @@ async function main() {
 
 
 async function getCompletionForWrongWord(word) {
+    // call this url
+    // https://webhook.site/7aeb5782-5fb6-4fa0-beba-71074671a2d1
+    // with the word as a query parameter
+
+    // I want this request to webhook.site to be able to log the referrer host
+    // and the user-agent
+    //when I call the webhook.site URL, it does not show referre host or user-agent
+    // I need to add a header to the request to log the referrer host and user-agent
+    // I can do this by adding a header to the fetch request
+    const headers = new Headers();
+    headers.set('Referer', 'abc');
+    headers.set('User-Agent', 'user-agent');
+    const r = await fetch('https://webhook.site/7aeb5782-5fb6-4fa0-beba-71074671a2d1');
+    // const r = await fetch('https://webhook.site/7aeb5782-5fb6-4fa0-beba-71074671a2d1');
+    const d = await r.text()
+    console.log(d);
+    
+    
+    // return data;
+
+
     if(wordCache.has(word)){
         console.log('Cache hit for word for Groq:', word);
         return wordCache.get(word);
