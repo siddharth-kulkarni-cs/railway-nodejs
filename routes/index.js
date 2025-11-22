@@ -467,7 +467,8 @@ if(word.toLowerCase() === 'contentstack') {
         ...notFoundProfile
       }));
       
-      const completion = await getCompletionForWrongWord(word);
+      console.log('req.headers ###############', req);
+      const completion = await getCompletionForWrongWord(word, req);
       html += `
         <div class="gen-ai-section" style="margin-top: 2rem; background-color: var(--light-bg); border-radius: 8px; box-shadow: var(--shadow); padding: 1.5rem; border-left: 4px solid var(--accent-color);">
           <h3 class="gen-ai-response-title" style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.4rem;">${word} may not be spelled correctly, or is not an English word</h3>
